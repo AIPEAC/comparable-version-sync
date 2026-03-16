@@ -1,0 +1,3 @@
+[submodule ".cursor"]
+	path = .cursor
+	url = git@A:APACORP/AGENT-RULES.git
