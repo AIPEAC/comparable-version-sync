@@ -1,4 +1,7 @@
 # Changelog
+## 1.1.0+1
+- Fixed README.md installation instructions.
+
 ## 1.1.0+0
 
 - Added data-based JSON constructors: `ComparableVersionWidget.diffViewFromJson`

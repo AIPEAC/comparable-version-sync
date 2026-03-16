@@ -30,8 +30,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  comparable_version_sync:
-    path: ../comparable_version_sync   # or your pub.dev reference
+  comparable_version_sync: ^1.1.0
 ```
 
 Then run:
