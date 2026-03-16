@@ -1,13 +1,13 @@
 // Copyright 2026 comparable_version_sync authors. All rights reserved.
 //
-// Uses the local clone of google/dart-json_diff (Apache 2.0).
-// See lib/third_party/dart_json_diff/LICENSE for license details.
+// Uses an inlined copy of google/dart-json_diff (Apache 2.0).
+// See LICENSE-dart-json-diff at the repository root for the full license text.
 
 import 'dart:convert';
 import 'dart:io' as io;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:json_diff/json_diff.dart';
+import '../vendor/json_diff.dart';
 
 import '../enums/comparison_mode.dart';
 import '../models/diff_context.dart';

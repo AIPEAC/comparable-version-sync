@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.0.2+3
+
+### A-00X
+- Added `ComparableVersionTheme` — every hardcoded dimension, colour, and animation
+  parameter is now a named field with a sensible default and full dartdoc.
+  Pass it to any constructor via the new `theme` parameter on
+  `ComparableVersionWidget`, or use `copyWith` to tweak only what you need.
+- Threaded `ComparableVersionTheme` through the entire widget tree:
+  `ComparableVersionWidget` → `DiffViewPanel` → `MergeOverlay` → `DiffDetailScreen`
+  and `RawViewPanel`.
+- Exported `ComparableVersionTheme` from the public barrel
+  (`comparable_version_sync.dart`).
+- Inlined `dart_json_diff` source into `lib/src/vendor/json_diff.dart`,
+  eliminating the path dependency that blocked pub.dev publishing.
+  Apache 2.0 copyright header preserved; full license copied to
+  `LICENSE-dart-json-diff` at the repository root.
+- Added `collection` as an explicit dependency (previously transitive only).
+- Removed `cupertino_icons` (unused app-only dependency).
+- Removed `publish_to: none` — package is now publishable to pub.dev.
+- Relaxed SDK lower-bound to `>=3.5.0 <4.0.0` for broader compatibility.
+- Rewrote `README.md` with full quick-start, API tables, theming reference,
+  architecture diagram, and platform support matrix.
+- Cleaned up `pubspec.yaml` (removed boilerplate comments, tightened description).
+
 ## 1.0.2
 
 ### A-001

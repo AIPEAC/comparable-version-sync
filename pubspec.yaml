@@ -13,12 +13,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  collection: ">=1.17.0 <3.0.0"
   sqflite: ^2.4.2
   sqflite_common_ffi: ^2.4.0+2
   sqflite_common_ffi_web: ^1.1.1
   path: ^1.9.1
-  json_diff:
-    path: lib/third_party/dart_json_diff
 
 dev_dependencies:
   flutter_test:
