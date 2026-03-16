@@ -1,15 +1,32 @@
 # Changelog
 
+## 1.0.2
+
+### A-001
+- Added `parentValueA` / `parentValueB` fields to `DiffContext` (full parent JSON subtree from each file).
+- Added `valueAtPath(root, path)` helper to `ContextResolver` for dot-notation navigation of nested JSON/Map structures.
+- Updated `JsonComparator` to parse root objects and populate `parentValueA`/`parentValueB` on every `DiffContext`; added `_parentPath` helper returning `""` for top-level diffs so the full root object is captured.
+- Updated `SqliteComparator` to set `parentValueA`/`parentValueB` to the full row map for field-level diffs and to the row map / null for missing-row diffs.
+- Implemented `lib/src/widgets/diff_detail_screen.dart`: read-only git-style side-by-side view with synchronized vertical scroll, independent horizontal scroll per panel, draggable split divider, shared horizontal pan bar, and diff-key highlighting (green = local, amber = incoming).
+
+### agent-002
+- Added `showAcceptCompatibleButton` and `acceptCompatibleByDefault` parameters to `ComparableVersionWidget.diffView` and wired through to `DiffViewPanel`.
+- `DiffViewPanel` now auto-resolves all compatible diffs (`isCompatible == true`) on load when `acceptCompatibleByDefault` is true; toggling the `FilterChip` off removes only auto-accepted resolutions, preserving manually-resolved ones.
+- Added `_compatibleChipBar()` toolbar above the diff list showing a `FilterChip` labelled `"Auto-accept compatible (N)"`.
+- Added `showDiffDetailButton`, `diffDetailButtonAlignment`, and `toJsonConverter` parameters to `ComparableVersionWidget.diffView`, wired through `DiffViewPanel` to `MergeOverlay`.
+- `MergeOverlay` now shows a "View Raw Diff" button (icon: `Icons.difference`) — in the `AppBar` actions when alignment is `topRight`, or as a `FilledButton.icon` in a `Stack` overlay otherwise — that pushes `DiffDetailScreen`.
+- Created stub `lib/src/widgets/diff_detail_screen.dart` for compilation; full implementation pending Agent 001.
+
 ## 1.0.1
 
-### agent-001
+### A-001
 - Implemented `context_resolver.dart`: `resolveParent` (dot-notation parent extraction) and `smallestSharedParent` (longest common dot-notation prefix across a set of paths).
 - Implemented `compatibility_checker.dart`: `isCompatible` (true when exactly one side is null/absent) and `filterIncompatible` (retains only true conflicts).
 - Implemented `json_comparator.dart`: reads both JSON files, runs `JsonDiffer`, recursively walks the `DiffNode` tree (changed / added / removed / sub-nodes) to produce `List<DiffContext>`, and filters via `CompatibilityChecker` when `mode == incompatibleOnly`.
 - Implemented `sqlite_comparator.dart`: platform init (FFI on Windows/Linux, FFI-web on web, built-in on mobile), enumerates tables via `sqlite_master`, pages through records with `LIMIT`/`OFFSET`, matches by primary key when available and falls back to positional matching, produces `List<DiffContext>` with per-column diffs; filters via `CompatibilityChecker` when needed.
 - Fixed `json_comparator.dart` for web safety: `dart:io` import aliased; `compare()` now throws `UnsupportedError` with a clear message on web; added `compareStrings()` as the web-safe alternative for callers with pre-loaded JSON strings.
 
-### agent-002
+### A-002
 - Implemented `comparable_version_widget.dart`: async comparator init, loading/error states, dispatch to RawViewPanel or DiffViewPanel; JSON and SQLite raw-data loading; merge-result builder with dot-notation path application.
 - Implemented `raw_view_panel.dart`: responsive 2-panel layout (side-by-side ≥ 600 dp / tabbed portrait), `_pageCache` keeping current ±1 pages, Prev/Next + jump-to-page dialog.
 - Implemented `diff_view_panel.dart`: paginated diff list with `_resolvedChoices` accumulator, MergeOverlay tap flow, Finalize FAB showing resolved count, optional `mergeResultBuilder` hook.
@@ -20,7 +37,7 @@
 
 ## 1.0.0
 
-### default-agent
+### A-000
 - Initial project setup: package skeleton, folder structure, enums, models, widget stubs.
 - Cloned `google/dart-json_diff` (Apache 2.0) into `lib/third_party/dart_json_diff/`.
 - Added dependencies: `sqflite`, `sqflite_common_ffi`, `sqflite_common_ffi_web`, `path`, local `json_diff`.

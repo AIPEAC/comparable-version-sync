@@ -25,6 +25,21 @@ class DiffViewPanel extends StatefulWidget {
   final MergeResult Function(Map<String, dynamic> resolvedChoices)?
       mergeResultBuilder;
 
+  /// Whether to show the "Accept All Compatible" toggle chip.
+  final bool showAcceptCompatibleButton;
+
+  /// Initial state of the toggle: true = pre-accept compatible diffs on load.
+  final bool acceptCompatibleByDefault;
+
+  /// Whether to show a "View Raw Diff" button inside MergeOverlay.
+  final bool showDiffDetailButton;
+
+  /// Alignment of the "View Raw Diff" button inside MergeOverlay.
+  final Alignment diffDetailButtonAlignment;
+
+  /// Optional converter for non-serialisable values.
+  final String Function(dynamic)? toJsonConverter;
+
   const DiffViewPanel({
     super.key,
     required this.diffs,
@@ -33,6 +48,11 @@ class DiffViewPanel extends StatefulWidget {
     this.mergeWidget,
     required this.onMergeComplete,
     this.mergeResultBuilder,
+    this.showAcceptCompatibleButton = false,
+    this.acceptCompatibleByDefault = true,
+    this.showDiffDetailButton = false,
+    this.diffDetailButtonAlignment = Alignment.topRight,
+    this.toJsonConverter,
   });
 
   @override
@@ -45,6 +65,57 @@ class _DiffViewPanelState extends State<DiffViewPanel> {
 
   /// Accumulated merge decisions: dot-notation path → chosen value.
   final Map<String, dynamic> _resolvedChoices = {};
+
+  /// Paths that were auto-resolved by the compatible-accept toggle
+  /// (so we can undo only those, not user-manual resolutions).
+  final Set<String> _autoResolvedPaths = {};
+
+  /// Current state of the auto-accept-compatible toggle.
+  bool _autoAcceptEnabled = false;
+
+  // ── Lifecycle ──────────────────────────────────────────────────────────────
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.showAcceptCompatibleButton && widget.acceptCompatibleByDefault) {
+      _autoAcceptEnabled = true;
+      _applyAutoAccept();
+    }
+  }
+
+  // ── Auto-accept compatible ─────────────────────────────────────────────────
+
+  int get _compatibleCount =>
+      widget.diffs.where((d) => d.isCompatible).length;
+
+  void _applyAutoAccept() {
+    for (final diff in widget.diffs) {
+      if (diff.isCompatible && !_resolvedChoices.containsKey(diff.path)) {
+        final value = diff.valueA ?? diff.valueB;
+        _resolvedChoices[diff.path] = value;
+        _autoResolvedPaths.add(diff.path);
+      }
+    }
+  }
+
+  void _removeAutoAccept() {
+    for (final path in _autoResolvedPaths) {
+      _resolvedChoices.remove(path);
+    }
+    _autoResolvedPaths.clear();
+  }
+
+  void _onToggleAutoAccept(bool enable) {
+    setState(() {
+      _autoAcceptEnabled = enable;
+      if (enable) {
+        _applyAutoAccept();
+      } else {
+        _removeAutoAccept();
+      }
+    });
+  }
 
   // ── Pagination ─────────────────────────────────────────────────────────────
 
@@ -77,8 +148,16 @@ class _DiffViewPanelState extends State<DiffViewPanel> {
         builder: (_) => MergeOverlay(
           diff: diff,
           mergeWidget: widget.mergeWidget,
+          showDiffDetailButton: widget.showDiffDetailButton,
+          diffDetailButtonAlignment: widget.diffDetailButtonAlignment,
+          toJsonConverter: widget.toJsonConverter,
           onResolved: (value) {
-            setState(() => _resolvedChoices[diff.path] = value);
+            setState(() {
+              _resolvedChoices[diff.path] = value;
+              // If the user manually resolves a previously auto-accepted path,
+              // it is no longer tracked as auto-resolved.
+              _autoResolvedPaths.remove(diff.path);
+            });
           },
         ),
       ),
@@ -160,6 +239,7 @@ class _DiffViewPanelState extends State<DiffViewPanel> {
       children: [
         Column(
           children: [
+            if (widget.showAcceptCompatibleButton) _compatibleChipBar(),
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
@@ -182,6 +262,31 @@ class _DiffViewPanelState extends State<DiffViewPanel> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _compatibleChipBar() {
+    return ColoredBox(
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          children: [
+            FilterChip(
+              label: Text('Auto-accept compatible ($_compatibleCount)'),
+              selected: _autoAcceptEnabled,
+              onSelected: _onToggleAutoAccept,
+              avatar: Icon(
+                _autoAcceptEnabled
+                    ? Icons.check_circle
+                    : Icons.check_circle_outline,
+                size: 18,
+              ),
+              showCheckmark: false,
+            ),
+          ],
+        ),
+      ),
     );
   }
 

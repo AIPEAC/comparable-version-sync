@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../models/diff_context.dart';
+import 'diff_detail_screen.dart';
 
 enum _MergeChoice { local, incoming, manual }
 
@@ -24,11 +25,24 @@ class MergeOverlay extends StatefulWidget {
   final Widget Function(DiffContext)? mergeWidget;
   final void Function(dynamic resolvedValue) onResolved;
 
+  /// Whether to show a "View Raw Diff" button.
+  final bool showDiffDetailButton;
+
+  /// Alignment of the "View Raw Diff" button inside the Scaffold body.
+  /// When [Alignment.topRight] (the default), it is placed in AppBar actions.
+  final Alignment diffDetailButtonAlignment;
+
+  /// Optional converter for non-serialisable values.
+  final String Function(dynamic)? toJsonConverter;
+
   const MergeOverlay({
     super.key,
     required this.diff,
     this.mergeWidget,
     required this.onResolved,
+    this.showDiffDetailButton = false,
+    this.diffDetailButtonAlignment = Alignment.topRight,
+    this.toJsonConverter,
   });
 
   @override
@@ -75,8 +89,68 @@ class _MergeOverlayState extends State<MergeOverlay> {
     Navigator.of(context).pop();
   }
 
+  void _openDiffDetail() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => DiffDetailScreen(
+          diff: widget.diff,
+          toJsonConverter: widget.toJsonConverter,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final showInAppBar = widget.showDiffDetailButton &&
+        widget.diffDetailButtonAlignment == Alignment.topRight;
+    final showInBody = widget.showDiffDetailButton && !showInAppBar;
+
+    final scrollBody = SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (widget.mergeWidget != null) ...[
+            widget.mergeWidget!(widget.diff),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+          ],
+          _ChoiceCard(
+            label: 'Accept Local (File 1)',
+            value: widget.diff.valueA,
+            showMergeWidget: widget.mergeWidget == null,
+            mergeWidget: null,
+            diff: widget.diff,
+            choice: _MergeChoice.local,
+            currentChoice: _choice,
+            accentColor: Colors.green,
+            onSelect: () => setState(() => _choice = _MergeChoice.local),
+          ),
+          const SizedBox(height: 12),
+          _ChoiceCard(
+            label: 'Accept Incoming (File 2)',
+            value: widget.diff.valueB,
+            showMergeWidget: false,
+            mergeWidget: null,
+            diff: widget.diff,
+            choice: _MergeChoice.incoming,
+            currentChoice: _choice,
+            accentColor: Colors.blue,
+            onSelect: () => setState(() => _choice = _MergeChoice.incoming),
+          ),
+          const SizedBox(height: 12),
+          _ManualCard(
+            controller: _controller,
+            choice: _MergeChoice.manual,
+            currentChoice: _choice,
+            onSelect: () => setState(() => _choice = _MergeChoice.manual),
+          ),
+        ],
+      ),
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -91,51 +165,33 @@ class _MergeOverlayState extends State<MergeOverlay> {
             ),
           ],
         ),
+        actions: [
+          if (showInAppBar)
+            TextButton.icon(
+              onPressed: _openDiffDetail,
+              icon: const Icon(Icons.difference),
+              label: const Text('View Raw Diff'),
+            ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (widget.mergeWidget != null) ...[
-              widget.mergeWidget!(widget.diff),
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 8),
-            ],
-            _ChoiceCard(
-              label: 'Accept Local (File 1)',
-              value: widget.diff.valueA,
-              showMergeWidget: widget.mergeWidget == null,
-              mergeWidget: null,
-              diff: widget.diff,
-              choice: _MergeChoice.local,
-              currentChoice: _choice,
-              accentColor: Colors.green,
-              onSelect: () => setState(() => _choice = _MergeChoice.local),
-            ),
-            const SizedBox(height: 12),
-            _ChoiceCard(
-              label: 'Accept Incoming (File 2)',
-              value: widget.diff.valueB,
-              showMergeWidget: false,
-              mergeWidget: null,
-              diff: widget.diff,
-              choice: _MergeChoice.incoming,
-              currentChoice: _choice,
-              accentColor: Colors.blue,
-              onSelect: () => setState(() => _choice = _MergeChoice.incoming),
-            ),
-            const SizedBox(height: 12),
-            _ManualCard(
-              controller: _controller,
-              choice: _MergeChoice.manual,
-              currentChoice: _choice,
-              onSelect: () => setState(() => _choice = _MergeChoice.manual),
-            ),
-          ],
-        ),
-      ),
+      body: showInBody
+          ? Stack(
+              children: [
+                scrollBody,
+                Align(
+                  alignment: widget.diffDetailButtonAlignment,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: FilledButton.icon(
+                      onPressed: _openDiffDetail,
+                      icon: const Icon(Icons.difference),
+                      label: const Text('View Raw Diff'),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : scrollBody,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _confirm,
         icon: const Icon(Icons.check),

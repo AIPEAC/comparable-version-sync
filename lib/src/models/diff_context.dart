@@ -19,12 +19,22 @@ class DiffContext {
   /// and the files are still compatible at this path.
   final bool isCompatible;
 
+  /// Full parent JSON subtree from file 1 at the [parentContext] path.
+  /// For a top-level diff this is the full root object.
+  final dynamic parentValueA;
+
+  /// Full parent JSON subtree from file 2 at the [parentContext] path.
+  /// For a top-level diff this is the full root object.
+  final dynamic parentValueB;
+
   const DiffContext({
     required this.path,
     required this.parentContext,
     required this.valueA,
     required this.valueB,
     required this.isCompatible,
+    this.parentValueA,
+    this.parentValueB,
   });
 
   @override

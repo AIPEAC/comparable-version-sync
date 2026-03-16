@@ -52,6 +52,27 @@ class ComparableVersionWidget extends StatefulWidget {
   /// Optional custom widget for merge resolution. Defaults to plain text.
   final Widget Function(DiffContext)? mergeWidget;
 
+  // --- diff view — accept-compatible feature ---
+
+  /// Whether to show the "Accept All Compatible" toggle chip. Default false.
+  final bool showAcceptCompatibleButton;
+
+  /// Initial state of the toggle when [showAcceptCompatibleButton] is true.
+  /// true = compatible diffs are pre-accepted on load. Default true.
+  final bool acceptCompatibleByDefault;
+
+  // --- diff view — raw diff detail feature ---
+
+  /// Whether to show a "View Raw Diff" button inside MergeOverlay. Default false.
+  final bool showDiffDetailButton;
+
+  /// Alignment of the "View Raw Diff" button within MergeOverlay's Scaffold body.
+  /// Default: Alignment.topRight (shown in AppBar actions).
+  final Alignment diffDetailButtonAlignment;
+
+  /// Optional converter for non-serialisable values (e.g. custom SQLite types).
+  final String Function(dynamic)? toJsonConverter;
+
   /// True when constructed via [diffView]; false when via [rawView].
   /// Used by the state to choose which panel to render.
   final bool isDiffView;
@@ -69,7 +90,12 @@ class ComparableVersionWidget extends StatefulWidget {
   })  : isDiffView = false,
         diffsPerPage = null,
         displayWidget = null,
-        mergeWidget = null;
+        mergeWidget = null,
+        showAcceptCompatibleButton = false,
+        acceptCompatibleByDefault = true,
+        showDiffDetailButton = false,
+        diffDetailButtonAlignment = Alignment.topRight,
+        toJsonConverter = null;
 
   /// Display mode 1 — paginated diff view with a required custom display widget.
   const ComparableVersionWidget.diffView({
@@ -81,6 +107,11 @@ class ComparableVersionWidget extends StatefulWidget {
     this.diffsPerPage = 10,
     required Widget Function(DiffContext) this.displayWidget,
     this.mergeWidget,
+    this.showAcceptCompatibleButton = false,
+    this.acceptCompatibleByDefault = true,
+    this.showDiffDetailButton = false,
+    this.diffDetailButtonAlignment = Alignment.topRight,
+    this.toJsonConverter,
     required this.returnType,
     required this.onMergeComplete,
   })  : isDiffView = true,
@@ -433,6 +464,11 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
         mergeWidget: widget.mergeWidget,
         onMergeComplete: widget.onMergeComplete,
         mergeResultBuilder: _buildMergeResult,
+        showAcceptCompatibleButton: widget.showAcceptCompatibleButton,
+        acceptCompatibleByDefault: widget.acceptCompatibleByDefault,
+        showDiffDetailButton: widget.showDiffDetailButton,
+        diffDetailButtonAlignment: widget.diffDetailButtonAlignment,
+        toJsonConverter: widget.toJsonConverter,
       );
     }
 
