@@ -1,7 +1,7 @@
 # Architecture — comparable_version_sync
 
 ## Overview
-A Flutter package providing a GUI widget to compare 2 versions of JSON or SQLite files side-by-side, with git-conflict-style merge resolution.
+A Flutter package providing a GUI widget to compare 2 versions of JSON or side-by-side, with git-conflict-style merge resolution.
 
 ---
 

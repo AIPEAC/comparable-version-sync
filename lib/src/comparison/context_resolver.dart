@@ -14,6 +14,32 @@ class ContextResolver {
     return parts.sublist(0, parts.length - 1).join('.');
   }
 
+  /// Navigates [root] by dot-notation [path] and returns the value found there.
+  ///
+  /// - If [path] is empty, returns [root] itself (the full root object).
+  /// - Map keys are looked up by their string segment.
+  /// - List elements are accessed by numeric index (parsed from the segment).
+  /// - Returns `null` if any segment is not found or the type is unexpected.
+  dynamic valueAtPath(dynamic root, String path) {
+    if (path.isEmpty) return root;
+    dynamic current = root;
+    for (final segment in path.split('.')) {
+      if (current is Map) {
+        current = current[segment];
+      } else if (current is List) {
+        final index = int.tryParse(segment);
+        if (index != null && index >= 0 && index < current.length) {
+          current = current[index];
+        } else {
+          return null;
+        }
+      } else {
+        return null;
+      }
+    }
+    return current;
+  }
+
   /// Given a list of [paths] that all differ, return the smallest shared
   /// parent context string (longest common dot-notation prefix, excluding
   /// the leaf segment).
