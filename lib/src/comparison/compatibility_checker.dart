@@ -1,5 +1,4 @@
 // Copyright 2026 comparable_version_sync authors. All rights reserved.
-// AGENT: 001 — implement this file.
 
 import '../models/diff_context.dart';
 
@@ -11,9 +10,7 @@ import '../models/diff_context.dart';
 class CompatibilityChecker {
   /// Returns only the incompatible diffs from [diffs].
   List<DiffContext> filterIncompatible(List<DiffContext> diffs) {
-    // TODO(AGENT:001): implement
-    // Keep only items where isCompatible == false.
-    throw UnimplementedError('CompatibilityChecker.filterIncompatible not yet implemented');
+    return diffs.where((d) => !d.isCompatible).toList();
   }
 
   /// Determines whether a single diff is compatible.
@@ -21,7 +18,6 @@ class CompatibilityChecker {
   /// Compatible: one side is null/absent, the other has a value.
   /// Incompatible: both sides have non-null, differing values.
   bool isCompatible(dynamic valueA, dynamic valueB) {
-    // TODO(AGENT:001): implement
-    throw UnimplementedError('CompatibilityChecker.isCompatible not yet implemented');
+    return valueA == null || valueB == null;
   }
 }
