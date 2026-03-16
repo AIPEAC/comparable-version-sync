@@ -4,31 +4,47 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
-/// Display mode 0 — shows raw records from both files side-by-side,
-/// paginated with [recordsPerPage] items per page.
+import '../theme/comparable_version_theme.dart';
+
+/// Display mode 0 — shows raw records from both files in a paginated view.
 ///
-/// Layout:
-/// - Desktop / landscape (width > 600 dp): 2 panels side-by-side.
-/// - Phone portrait (width ≤ 600 dp): stacked panels with a tab switch.
+/// ## Layout
 ///
-/// Navigation: Prev/Next buttons + jump-to-page dialog.
-/// Uses _pageCache (current page ±1) to avoid loading all data at once.
+/// - **Wide** (width > [ComparableVersionTheme.responsiveBreakpoint]):
+///   two panels side-by-side separated by a vertical divider.
+/// - **Narrow** (width ≤ breakpoint):
+///   stacked panels with a [TabBar] toggle.
+///
+/// ## Pagination
+///
+/// Prev/Next buttons + jump-to-page dialog.
+/// Only the current page ±1 is kept in memory; other pages are evicted.
+///
+/// All visual dimensions are controlled via [theme].
 class RawViewPanel extends StatefulWidget {
-  /// Records from file 1, keyed by page index.
+  /// Async record loader for file 1, called with a zero-based page index.
   final Future<List<Map<String, dynamic>>> Function(int page) loadPageFile1;
 
-  /// Records from file 2, keyed by page index.
+  /// Async record loader for file 2, called with a zero-based page index.
   final Future<List<Map<String, dynamic>>> Function(int page) loadPageFile2;
 
+  /// Number of records per page (determines the slice passed to the loaders).
   final int recordsPerPage;
+
+  /// Total number of pages (used by the navigation bar).
   final int totalPages;
 
+  /// Visual configuration. Defaults to [ComparableVersionTheme.new].
+  final ComparableVersionTheme theme;
+
+  /// Creates a [RawViewPanel].
   const RawViewPanel({
     super.key,
     required this.loadPageFile1,
     required this.loadPageFile2,
     required this.recordsPerPage,
     required this.totalPages,
+    this.theme = const ComparableVersionTheme(),
   });
 
   @override
@@ -39,7 +55,6 @@ class _RawViewPanelState extends State<RawViewPanel>
     with SingleTickerProviderStateMixin {
   int _currentPage = 0;
 
-  // Current page ±1 kept in memory; older pages evicted.
   final Map<int, Future<List<Map<String, dynamic>>>> _cacheFile1 = {};
   final Map<int, Future<List<Map<String, dynamic>>>> _cacheFile2 = {};
 
@@ -81,8 +96,7 @@ class _RawViewPanelState extends State<RawViewPanel>
   // ── Jump dialog ────────────────────────────────────────────────────────────
 
   Future<void> _showJumpDialog() async {
-    final controller =
-        TextEditingController(text: '${_currentPage + 1}');
+    final controller = TextEditingController(text: '${_currentPage + 1}');
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -124,7 +138,8 @@ class _RawViewPanelState extends State<RawViewPanel>
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (_, constraints) {
-        final isWide = constraints.maxWidth > 600;
+        final isWide =
+            constraints.maxWidth > widget.theme.responsiveBreakpoint;
         return Column(
           children: [
             Expanded(
@@ -196,9 +211,7 @@ class _RawViewPanelState extends State<RawViewPanel>
         }
         final records = snap.data ?? [];
         if (records.isEmpty) {
-          return Center(
-            child: Text('$label: no records on this page.'),
-          );
+          return Center(child: Text('$label: no records on this page.'));
         }
         return ListView.builder(
           padding: const EdgeInsets.all(8),
@@ -210,6 +223,7 @@ class _RawViewPanelState extends State<RawViewPanel>
   }
 
   Widget _recordCard(Map<String, dynamic> record, int indexOnPage) {
+    final t = widget.theme;
     final globalIndex =
         _currentPage * widget.recordsPerPage + indexOnPage + 1;
     return Card(
@@ -221,8 +235,8 @@ class _RawViewPanelState extends State<RawViewPanel>
           children: [
             Text(
               '#$globalIndex',
-              style: const TextStyle(
-                fontSize: 11,
+              style: TextStyle(
+                fontSize: t.smallLabelFontSize,
                 color: Colors.grey,
                 fontFamily: 'monospace',
               ),
@@ -230,7 +244,10 @@ class _RawViewPanelState extends State<RawViewPanel>
             const SizedBox(height: 4),
             SelectableText(
               const JsonEncoder.withIndent('  ').convert(record),
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: t.monoFontSize - 1,
+              ),
             ),
           ],
         ),

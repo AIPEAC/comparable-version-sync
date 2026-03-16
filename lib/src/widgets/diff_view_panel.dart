@@ -6,40 +6,60 @@ import 'package:flutter/material.dart';
 
 import '../models/diff_context.dart';
 import '../models/merge_result.dart';
+import '../theme/comparable_version_theme.dart';
 import 'merge_overlay.dart';
 
-/// Display mode 1 — shows paginated diff items, each rendered via [displayWidget].
+/// Display mode 1 — shows a paginated list of [DiffContext] items rendered
+/// via [displayWidget].
 ///
-/// Tapping a diff item opens [MergeOverlay].
-/// After all conflicts are resolved the FAB calls [onMergeComplete].
+/// Each tile opens a [MergeOverlay] on tap.
+/// After all conflicts are resolved the "Finalize" FAB calls [onMergeComplete].
+///
+/// All visual dimensions are controlled via [theme].
 class DiffViewPanel extends StatefulWidget {
+  /// Full list of diffs to display and resolve.
   final List<DiffContext> diffs;
+
+  /// Number of diff items shown per page.
   final int diffsPerPage;
+
+  /// Required builder that renders a summary for each [DiffContext].
   final Widget Function(DiffContext) displayWidget;
+
+  /// Optional custom widget rendered inside [MergeOverlay] above the cards.
   final Widget Function(DiffContext)? mergeWidget;
+
+  /// Called with the final [MergeResult] when the user taps "Finalize".
   final void Function(MergeResult) onMergeComplete;
 
   /// Optional builder that constructs a [MergeResult] from the accumulated
-  /// resolved choices map (`path → resolvedValue`). When null a flat
+  /// resolved choices map (`path → resolvedValue`). When `null`, a flat
   /// `MergeResult(mergedJson: choices)` is returned as a fallback.
   final MergeResult Function(Map<String, dynamic> resolvedChoices)?
       mergeResultBuilder;
 
-  /// Whether to show the "Accept All Compatible" toggle chip.
+  /// Whether to show the "Auto-accept compatible" toggle chip above the list.
   final bool showAcceptCompatibleButton;
 
-  /// Initial state of the toggle: true = pre-accept compatible diffs on load.
+  /// Initial state of the toggle:
+  /// - `true` — compatible diffs are pre-accepted when the widget loads.
+  /// - `false` — all diffs start unresolved.
   final bool acceptCompatibleByDefault;
 
-  /// Whether to show a "View Raw Diff" button inside MergeOverlay.
+  /// Whether to show a "View Raw Diff" button inside [MergeOverlay].
   final bool showDiffDetailButton;
 
-  /// Alignment of the "View Raw Diff" button inside MergeOverlay.
+  /// Alignment of the "View Raw Diff" button inside [MergeOverlay].
   final Alignment diffDetailButtonAlignment;
 
-  /// Optional converter for non-serialisable values.
+  /// Optional converter for non-serialisable values (passed through to
+  /// [MergeOverlay] and [DiffDetailScreen]).
   final String Function(dynamic)? toJsonConverter;
 
+  /// Visual configuration. Defaults to [ComparableVersionTheme.new].
+  final ComparableVersionTheme theme;
+
+  /// Creates a [DiffViewPanel].
   const DiffViewPanel({
     super.key,
     required this.diffs,
@@ -53,6 +73,7 @@ class DiffViewPanel extends StatefulWidget {
     this.showDiffDetailButton = false,
     this.diffDetailButtonAlignment = Alignment.topRight,
     this.toJsonConverter,
+    this.theme = const ComparableVersionTheme(),
   });
 
   @override
@@ -66,8 +87,7 @@ class _DiffViewPanelState extends State<DiffViewPanel> {
   /// Accumulated merge decisions: dot-notation path → chosen value.
   final Map<String, dynamic> _resolvedChoices = {};
 
-  /// Paths that were auto-resolved by the compatible-accept toggle
-  /// (so we can undo only those, not user-manual resolutions).
+  /// Paths that were auto-resolved by the compatible-accept toggle.
   final Set<String> _autoResolvedPaths = {};
 
   /// Current state of the auto-accept-compatible toggle.
@@ -126,7 +146,6 @@ class _DiffViewPanelState extends State<DiffViewPanel> {
     return _pageCache.putIfAbsent(page, () {
       final start = page * widget.diffsPerPage;
       final end = min(start + widget.diffsPerPage, widget.diffs.length);
-      // Keep only current ±1 pages in cache.
       _pageCache.removeWhere((k, _) => (k - page).abs() > 1);
       return widget.diffs.sublist(start, end);
     });
@@ -136,7 +155,7 @@ class _DiffViewPanelState extends State<DiffViewPanel> {
     if (page < 0 || page >= _totalPages) return;
     setState(() {
       _currentPage = page;
-      _getPage(page); // prime cache
+      _getPage(page);
     });
   }
 
@@ -151,11 +170,10 @@ class _DiffViewPanelState extends State<DiffViewPanel> {
           showDiffDetailButton: widget.showDiffDetailButton,
           diffDetailButtonAlignment: widget.diffDetailButtonAlignment,
           toJsonConverter: widget.toJsonConverter,
+          theme: widget.theme,
           onResolved: (value) {
             setState(() {
               _resolvedChoices[diff.path] = value;
-              // If the user manually resolves a previously auto-accepted path,
-              // it is no longer tracked as auto-resolved.
               _autoResolvedPaths.remove(diff.path);
             });
           },
@@ -181,8 +199,7 @@ class _DiffViewPanelState extends State<DiffViewPanel> {
   // ── Jump dialog ────────────────────────────────────────────────────────────
 
   Future<void> _showJumpDialog() async {
-    final controller =
-        TextEditingController(text: '${_currentPage + 1}');
+    final controller = TextEditingController(text: '${_currentPage + 1}');
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -221,14 +238,23 @@ class _DiffViewPanelState extends State<DiffViewPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final t = widget.theme;
+
     if (widget.diffs.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.check_circle_outline, size: 64, color: Colors.green),
-            SizedBox(height: 16),
-            Text('No differences found.', style: TextStyle(fontSize: 18)),
+            Icon(
+              Icons.check_circle_outline,
+              size: t.iconSize * 3.2,
+              color: Colors.green,
+            ),
+            SizedBox(height: t.cardPadding),
+            const Text(
+              'No differences found.',
+              style: TextStyle(fontSize: 18),
+            ),
           ],
         ),
       );
@@ -242,7 +268,7 @@ class _DiffViewPanelState extends State<DiffViewPanel> {
             if (widget.showAcceptCompatibleButton) _compatibleChipBar(),
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
+                padding: EdgeInsets.fromLTRB(12, 12, 12, t.listBottomPadding),
                 itemCount: page.length,
                 itemBuilder: (_, i) => _diffTile(page[i]),
               ),
@@ -251,8 +277,8 @@ class _DiffViewPanelState extends State<DiffViewPanel> {
           ],
         ),
         Positioned(
-          right: 16,
-          bottom: 72,
+          right: t.diffFabRightOffset,
+          bottom: t.diffFabBottomOffset,
           child: FloatingActionButton.extended(
             onPressed: _finalizeMerge,
             icon: const Icon(Icons.merge_type),
@@ -266,6 +292,7 @@ class _DiffViewPanelState extends State<DiffViewPanel> {
   }
 
   Widget _compatibleChipBar() {
+    final t = widget.theme;
     return ColoredBox(
       color: Theme.of(context).colorScheme.surfaceContainerLow,
       child: Padding(
@@ -280,7 +307,7 @@ class _DiffViewPanelState extends State<DiffViewPanel> {
                 _autoAcceptEnabled
                     ? Icons.check_circle
                     : Icons.check_circle_outline,
-                size: 18,
+                size: t.smallIconSize,
               ),
               showCheckmark: false,
             ),
@@ -291,11 +318,12 @@ class _DiffViewPanelState extends State<DiffViewPanel> {
   }
 
   Widget _diffTile(DiffContext diff) {
+    final t = widget.theme;
     final isResolved = _resolvedChoices.containsKey(diff.path);
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(t.cardBorderRadius),
         onTap: () => _openMergeOverlay(diff),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -305,18 +333,17 @@ class _DiffViewPanelState extends State<DiffViewPanel> {
               Padding(
                 padding: const EdgeInsets.only(top: 2, right: 10),
                 child: isResolved
-                    ? const Icon(
+                    ? Icon(
                         Icons.check_circle,
                         color: Colors.green,
-                        size: 20,
+                        size: t.iconSize,
                       )
                     : Icon(
                         diff.isCompatible
                             ? Icons.info_outline
                             : Icons.warning_amber,
-                        color:
-                            diff.isCompatible ? Colors.blue : Colors.orange,
-                        size: 20,
+                        color: diff.isCompatible ? Colors.blue : Colors.orange,
+                        size: t.iconSize,
                       ),
               ),
               Expanded(
@@ -325,10 +352,10 @@ class _DiffViewPanelState extends State<DiffViewPanel> {
                   children: [
                     Text(
                       diff.path,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'monospace',
                         fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        fontSize: t.monoFontSize,
                       ),
                     ),
                     const SizedBox(height: 4),

@@ -5,29 +5,43 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../models/diff_context.dart';
+import '../theme/comparable_version_theme.dart';
 
-/// Read-only, git-style side-by-side view for a single [DiffContext].
+/// Read-only, git-style side-by-side diff view for a single [DiffContext].
 ///
-/// Left panel = local / file1 (parentValueA).
-/// Right panel = incoming / file2 (parentValueB).
+/// Left panel shows **local / file 1** (`parentValueA`); the right panel shows
+/// **incoming / file 2** (`parentValueB`), both rendered as pretty-printed JSON
+/// with the differing field highlighted.
 ///
-/// Features:
-/// - Draggable vertical divider to adjust panel split ratio.
-/// - Synchronized vertical scroll across both panels.
-/// - Independent horizontal scroll per panel.
-/// - Shared horizontal pan bar at the bottom.
-/// - Tap a line to scroll both panels so that line is near the top.
-/// - Differing field highlighted: green (left) / amber (right).
+/// ## Features
+///
+/// - **Resizable panels** — drag the vertical divider to adjust the split ratio.
+/// - **Synchronized vertical scroll** — scrolling either panel drives the other.
+/// - **Independent horizontal scroll** per panel for deeply-indented content.
+/// - **Shared horizontal pan bar** — drag the bottom handle to pan both panels
+///   simultaneously.
+/// - **Tap-to-scroll** — tapping any line animates both panels to that line.
+/// - **Configurable** — all dimensions, colours, and animation parameters are
+///   controlled by the [theme] parameter.
+///
+/// This screen is read-only; merge decisions happen in [MergeOverlay].
 class DiffDetailScreen extends StatefulWidget {
+  /// The diff whose parent context will be rendered.
   final DiffContext diff;
 
-  /// Optional converter invoked when the default [jsonEncode] throws.
+  /// Optional converter invoked when the default [jsonEncode] throws
+  /// (e.g. for custom SQLite types that are not JSON-serialisable by default).
   final String Function(dynamic)? toJsonConverter;
 
+  /// Visual configuration. Defaults to [ComparableVersionTheme.new].
+  final ComparableVersionTheme theme;
+
+  /// Creates a [DiffDetailScreen] for the given [diff].
   const DiffDetailScreen({
     super.key,
     required this.diff,
     this.toJsonConverter,
+    this.theme = const ComparableVersionTheme(),
   });
 
   @override
@@ -36,7 +50,7 @@ class DiffDetailScreen extends StatefulWidget {
 
 class _DiffDetailScreenState extends State<DiffDetailScreen> {
   // ── split ratio ────────────────────────────────────────────────────────────
-  double _splitRatio = 0.5;
+  late double _splitRatio;
 
   // ── vertical scroll (synchronized) ────────────────────────────────────────
   final _vertA = ScrollController();
@@ -54,12 +68,10 @@ class _DiffDetailScreenState extends State<DiffDetailScreen> {
   late final Set<int> _highlightA;
   late final Set<int> _highlightB;
 
-  static const double _lineHeight = 20.0;
-  static const double _panelPadding = 8.0;
-
   @override
   void initState() {
     super.initState();
+    _splitRatio = widget.theme.initialSplitRatio;
 
     _linesA = _toLines(widget.diff.parentValueA);
     _linesB = _toLines(widget.diff.parentValueB);
@@ -111,7 +123,6 @@ class _DiffDetailScreenState extends State<DiffDetailScreen> {
         if (line.contains(keyPattern)) {
           result.add(i);
           startDepth = _depthBefore(lines, i);
-          // Check if this single line closes back to startDepth already.
           if (_depthAt(line) == 0) {
             inBlock = false;
           } else {
@@ -120,7 +131,6 @@ class _DiffDetailScreenState extends State<DiffDetailScreen> {
         }
       } else {
         result.add(i);
-        // Finished when cumulative depth since the key line returns to startDepth.
         if (_cumulativeDepth(lines, result.reduce((a, b) => a < b ? a : b), i) <=
             (startDepth ?? 0)) {
           inBlock = false;
@@ -175,14 +185,14 @@ class _DiffDetailScreenState extends State<DiffDetailScreen> {
   }
 
   void _scrollToLine(int lineIndex) {
-    final target = (lineIndex * _lineHeight).clamp(
+    final target = (lineIndex * widget.theme.lineHeight).clamp(
       0.0,
       _vertA.hasClients ? _vertA.position.maxScrollExtent : double.infinity,
     );
     _vertA.animateTo(
       target,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
+      duration: widget.theme.scrollAnimationDuration,
+      curve: widget.theme.scrollAnimationCurve,
     );
   }
 
@@ -190,6 +200,7 @@ class _DiffDetailScreenState extends State<DiffDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = widget.theme;
     return Scaffold(
       appBar: AppBar(title: Text('Diff: ${widget.diff.path}')),
       body: Column(
@@ -200,52 +211,51 @@ class _DiffDetailScreenState extends State<DiffDetailScreen> {
                 final totalWidth = constraints.maxWidth;
                 return Row(
                   children: [
-                    // Left panel (file 1 / local)
                     SizedBox(
                       width: totalWidth * _splitRatio,
                       child: _Panel(
                         label: 'Local (file 1)',
                         lines: _linesA,
                         highlightLines: _highlightA,
-                        highlightColor: Colors.green.withValues(alpha: 0.20),
+                        highlightColor: t.localHighlightColor,
                         vertController: _vertA,
                         horizController: _horizA,
                         hOffset: _hOffset,
-                        lineHeight: _lineHeight,
-                        padding: _panelPadding,
+                        lineHeight: t.lineHeight,
+                        linePadding: t.linePadding,
+                        codeCanvasWidth: t.codeCanvasWidth,
                         onLineTap: _scrollToLine,
                       ),
                     ),
-                    // Draggable divider
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onHorizontalDragUpdate: (details) {
                         setState(() {
                           _splitRatio = (_splitRatio +
                                   details.delta.dx / totalWidth)
-                              .clamp(0.1, 0.9);
+                              .clamp(t.minSplitRatio, t.maxSplitRatio);
                         });
                       },
                       child: Container(
-                        width: 6,
+                        width: t.dividerWidth,
                         color: Theme.of(context).dividerColor,
                         child: const Center(
                           child: VerticalDivider(width: 0),
                         ),
                       ),
                     ),
-                    // Right panel (file 2 / incoming)
                     Expanded(
                       child: _Panel(
                         label: 'Incoming (file 2)',
                         lines: _linesB,
                         highlightLines: _highlightB,
-                        highlightColor: Colors.amber.withValues(alpha: 0.20),
+                        highlightColor: t.incomingHighlightColor,
                         vertController: _vertB,
                         horizController: _horizB,
                         hOffset: _hOffset,
-                        lineHeight: _lineHeight,
-                        padding: _panelPadding,
+                        lineHeight: t.lineHeight,
+                        linePadding: t.linePadding,
+                        codeCanvasWidth: t.codeCanvasWidth,
                         onLineTap: _scrollToLine,
                       ),
                     ),
@@ -254,8 +264,10 @@ class _DiffDetailScreenState extends State<DiffDetailScreen> {
               },
             ),
           ),
-          // Shared horizontal pan bar
           _HorizontalPanBar(
+            height: t.panBarHeight,
+            handleWidth: t.panBarHandleWidth,
+            handleHeight: t.panBarHandleHeight,
             onDragUpdate: (dx) {
               setState(() {
                 _hOffset = (_hOffset - dx).clamp(0.0, 10000.0);
@@ -283,7 +295,8 @@ class _Panel extends StatelessWidget {
   final ScrollController horizController;
   final double hOffset;
   final double lineHeight;
-  final double padding;
+  final double linePadding;
+  final double codeCanvasWidth;
   final void Function(int lineIndex) onLineTap;
 
   const _Panel({
@@ -295,16 +308,17 @@ class _Panel extends StatelessWidget {
     required this.horizController,
     required this.hOffset,
     required this.lineHeight,
-    required this.padding,
+    required this.linePadding,
+    required this.codeCanvasWidth,
     required this.onLineTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final textStyle = Theme.of(context)
-        .textTheme
-        .bodySmall
-        ?.copyWith(fontFamily: 'monospace', height: 1.0) ??
+            .textTheme
+            .bodySmall
+            ?.copyWith(fontFamily: 'monospace', height: 1.0) ??
         const TextStyle(fontFamily: 'monospace', fontSize: 12, height: 1.0);
 
     return Column(
@@ -313,17 +327,18 @@ class _Panel extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          child: Text(label,
-              style: Theme.of(context).textTheme.labelSmall,
-              overflow: TextOverflow.ellipsis),
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
         Expanded(
           child: SingleChildScrollView(
             controller: horizController,
             scrollDirection: Axis.horizontal,
             child: SizedBox(
-              // Provide a wide enough canvas so all lines are visible.
-              width: 2000,
+              width: codeCanvasWidth,
               child: ListView.builder(
                 controller: vertController,
                 itemCount: lines.length,
@@ -335,8 +350,7 @@ class _Panel extends StatelessWidget {
                     child: Container(
                       height: lineHeight,
                       color: isHighlighted ? highlightColor : null,
-                      padding:
-                          EdgeInsets.symmetric(horizontal: padding),
+                      padding: EdgeInsets.symmetric(horizontal: linePadding),
                       alignment: Alignment.centerLeft,
                       child: Text(
                         lines[index],
@@ -361,9 +375,17 @@ class _Panel extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _HorizontalPanBar extends StatelessWidget {
+  final double height;
+  final double handleWidth;
+  final double handleHeight;
   final void Function(double dx) onDragUpdate;
 
-  const _HorizontalPanBar({required this.onDragUpdate});
+  const _HorizontalPanBar({
+    required this.height,
+    required this.handleWidth,
+    required this.handleHeight,
+    required this.onDragUpdate,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -371,15 +393,15 @@ class _HorizontalPanBar extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onHorizontalDragUpdate: (details) => onDragUpdate(details.delta.dx),
       child: Container(
-        height: 24,
+        height: height,
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         child: Center(
           child: Container(
-            width: 48,
-            height: 4,
+            width: handleWidth,
+            height: handleHeight,
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.outline,
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.circular(handleHeight / 2),
             ),
           ),
         ),

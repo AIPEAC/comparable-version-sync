@@ -18,6 +18,7 @@ import '../enums/file_type.dart';
 import '../enums/return_type.dart';
 import '../models/diff_context.dart';
 import '../models/merge_result.dart';
+import '../theme/comparable_version_theme.dart';
 import 'diff_view_panel.dart';
 import 'raw_view_panel.dart';
 
@@ -30,54 +31,139 @@ import 'raw_view_panel.dart';
 /// Use the named constructors to get compile-time safety for the required
 /// parameters of each display mode.
 ///
-/// The widget is fully responsive and fills any parent box.
+/// The widget is fully responsive and fills any parent box — it has no minimum
+/// or maximum size constraints of its own.
+///
+/// ## Display modes
+///
+/// | Constructor | Description |
+/// |---|---|
+/// | [ComparableVersionWidget.rawView] | Side-by-side raw JSON / SQL records paginated view. |
+/// | [ComparableVersionWidget.diffView] | Paginated diff list with per-field merge resolution. |
+///
+/// ## File types
+///
+/// | [FileType] | Format |
+/// |---|---|
+/// | [FileType.json] | Standard JSON files (`Map` or `List` root). |
+/// | [FileType.sqlite] | SQLite database files compared table-by-table. |
+///
+/// ## Theming
+///
+/// Pass a [ComparableVersionTheme] to control every dimension, colour, and
+/// animation parameter:
+///
+/// ```dart
+/// ComparableVersionWidget.diffView(
+///   theme: const ComparableVersionTheme(
+///     responsiveBreakpoint: 720,
+///     localHighlightColor: Color(0x2200BCD4),
+///     incomingHighlightColor: Color(0x22FF5722),
+///   ),
+///   ...
+/// )
+/// ```
+///
+/// ## Minimal diff-view example
+///
+/// ```dart
+/// ComparableVersionWidget.diffView(
+///   fileType: FileType.json,
+///   file1Path: '/path/to/v1.json',
+///   file2Path: '/path/to/v2.json',
+///   comparisonMode: ComparisonMode.allDiffs,
+///   diffsPerPage: 10,
+///   displayWidget: (diff) => Text('${diff.valueA} → ${diff.valueB}'),
+///   returnType: ReturnType.json,
+///   onMergeComplete: (result) => print(result.mergedJson),
+/// )
+/// ```
 class ComparableVersionWidget extends StatefulWidget {
   // --- shared fields ---
+
+  /// Whether the inputs are JSON files or SQLite databases.
   final FileType fileType;
+
+  /// Absolute path to the first file (local / "base" version).
   final String file1Path;
+
+  /// Absolute path to the second file (incoming / "new" version).
   final String file2Path;
+
+  /// Controls which diffs are included in the result.
+  ///
+  /// - [ComparisonMode.allDiffs] — every field that differs.
+  /// - [ComparisonMode.incompatibleOnly] — only true conflicts where **both**
+  ///   sides have non-null values.
   final ComparisonMode comparisonMode;
+
+  /// Format of the [MergeResult] returned via [onMergeComplete].
   final ReturnType returnType;
+
+  /// Called with the final [MergeResult] when the user confirms the merge.
   final void Function(MergeResult) onMergeComplete;
 
   // --- display mode 0 (raw view) ---
+
+  /// Number of records shown per page in raw view. Default: `10`.
   final int? recordsPerPage;
 
   // --- display mode 1 (diff view) ---
+
+  /// Number of diff items shown per page in diff view. Default: `10`.
   final int? diffsPerPage;
 
-  /// Required for display mode 1 at construction time (named constructor).
+  /// Required for diff view — renders a summary row for each [DiffContext].
   final Widget Function(DiffContext)? displayWidget;
 
-  /// Optional custom widget for merge resolution. Defaults to plain text.
+  /// Optional custom widget shown inside [MergeOverlay] above the choice cards.
+  /// When `null`, the default plain-text / JSON value display is used.
   final Widget Function(DiffContext)? mergeWidget;
 
   // --- diff view — accept-compatible feature ---
 
-  /// Whether to show the "Accept All Compatible" toggle chip. Default false.
+  /// Whether to show the "Auto-accept compatible" toggle chip above the diff
+  /// list. Default: `false`.
+  ///
+  /// Compatible diffs are those where only one side has a non-null value.
   final bool showAcceptCompatibleButton;
 
-  /// Initial state of the toggle when [showAcceptCompatibleButton] is true.
-  /// true = compatible diffs are pre-accepted on load. Default true.
+  /// Initial state of the auto-accept toggle when [showAcceptCompatibleButton]
+  /// is `true`.
+  ///
+  /// - `true` (default) — compatible diffs are pre-accepted on load.
+  /// - `false` — all diffs start unresolved.
   final bool acceptCompatibleByDefault;
 
   // --- diff view — raw diff detail feature ---
 
-  /// Whether to show a "View Raw Diff" button inside MergeOverlay. Default false.
+  /// Whether to show a "View Raw Diff" button inside the merge overlay that
+  /// navigates to the side-by-side [DiffDetailScreen]. Default: `false`.
   final bool showDiffDetailButton;
 
-  /// Alignment of the "View Raw Diff" button within MergeOverlay's Scaffold body.
-  /// Default: Alignment.topRight (shown in AppBar actions).
+  /// Placement of the "View Raw Diff" button within the merge overlay.
+  ///
+  /// [Alignment.topRight] (the default) adds it to the [AppBar] actions.
+  /// Any other value positions it inside the body with [Stack] + [Align].
   final Alignment diffDetailButtonAlignment;
 
   /// Optional converter for non-serialisable values (e.g. custom SQLite types).
+  /// Called by [DiffDetailScreen] when the default [jsonEncode] throws.
   final String Function(dynamic)? toJsonConverter;
 
-  /// True when constructed via [diffView]; false when via [rawView].
-  /// Used by the state to choose which panel to render.
+  /// Visual configuration for all sub-widgets. Defaults to
+  /// [ComparableVersionTheme.new].
+  final ComparableVersionTheme theme;
+
+  /// `true` when constructed via [diffView]; `false` when via [rawView].
   final bool isDiffView;
 
-  /// Display mode 0 — raw paginated view of both files side-by-side.
+  // ---------------------------------------------------------------------------
+  // Constructors
+  // ---------------------------------------------------------------------------
+
+  /// Display mode 0 — paginated raw view of records from both files
+  /// side-by-side (or in a tabbed view on narrow screens).
   const ComparableVersionWidget.rawView({
     super.key,
     required this.fileType,
@@ -87,6 +173,7 @@ class ComparableVersionWidget extends StatefulWidget {
     this.recordsPerPage = 10,
     required this.returnType,
     required this.onMergeComplete,
+    this.theme = const ComparableVersionTheme(),
   })  : isDiffView = false,
         diffsPerPage = null,
         displayWidget = null,
@@ -97,7 +184,10 @@ class ComparableVersionWidget extends StatefulWidget {
         diffDetailButtonAlignment = Alignment.topRight,
         toJsonConverter = null;
 
-  /// Display mode 1 — paginated diff view with a required custom display widget.
+  /// Display mode 1 — paginated diff view with per-field merge resolution.
+  ///
+  /// [displayWidget] is required at construction time and renders the summary
+  /// row for each detected difference.
   const ComparableVersionWidget.diffView({
     super.key,
     required this.fileType,
@@ -114,6 +204,7 @@ class ComparableVersionWidget extends StatefulWidget {
     this.toJsonConverter,
     required this.returnType,
     required this.onMergeComplete,
+    this.theme = const ComparableVersionTheme(),
   })  : isDiffView = true,
         recordsPerPage = null;
 
@@ -137,20 +228,14 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
   String? _error;
   List<DiffContext> _diffs = [];
 
-  // JSON raw data — kept for raw-view display and merge-result reconstruction.
-  // dart:io File is guarded by kIsWeb; on web this stays null.
   dynamic _jsonRawData1;
   dynamic _jsonRawData2;
 
-  // SQLite databases — kept open for lazy raw-view loading; closed on dispose.
   Database? _db1;
   Database? _db2;
   List<String> _sqliteTables = [];
-
-  /// Currently selected table for SQLite raw view.
   String? _selectedTable;
 
-  // Total pages for RawViewPanel.
   int _rawTotalPages = 1;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -210,7 +295,6 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
 
   Future<void> _loadJsonData() async {
     if (kIsWeb) {
-      // dart:io File is unavailable on web; show empty raw view.
       _jsonRawData1 = <String, dynamic>{};
       _jsonRawData2 = <String, dynamic>{};
       _rawTotalPages = 1;
@@ -227,8 +311,6 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
   // ── SQLite raw data loading ────────────────────────────────────────────────
 
   Future<void> _loadSqliteData() async {
-    // Mirror SqliteComparator.initPlatform() — safe to call multiple times
-    // because the comparator tracks an _initialized flag.
     if (kIsWeb) {
       databaseFactory = databaseFactoryFfiWeb;
     } else if (defaultTargetPlatform == TargetPlatform.windows ||
@@ -252,11 +334,8 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
     }
   }
 
-  /// Recomputes [_rawTotalPages] for the given [table] and triggers a rebuild.
   Future<void> _recomputeSqlitePages(String table) async {
-    final countRows = await _db1!.rawQuery(
-      'SELECT COUNT(*) FROM "$table"',
-    );
+    final countRows = await _db1!.rawQuery('SELECT COUNT(*) FROM "$table"');
     final count = countRows.isNotEmpty
         ? (countRows.first.values.first as int?) ?? 0
         : 0;
@@ -264,7 +343,6 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
     _rawTotalPages = max(1, (count / perPage).ceil());
   }
 
-  /// Called when the user picks a different table from the dropdown.
   Future<void> _onTableSelected(String table) async {
     await _recomputeSqlitePages(table);
     if (mounted) {
@@ -333,8 +411,6 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
   }
 
   MergeResult _buildSqliteMergeResult(Map<String, dynamic> choices) {
-    // Full row reconstruction requires re-querying with open DB connections;
-    // return choices as a flat structure for the initial implementation.
     return MergeResult(
       mergedJson: widget.returnType != ReturnType.sql ? choices : null,
       mergedRows: widget.returnType != ReturnType.json
@@ -348,7 +424,6 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
   }
 
   MergeResult _buildRawViewMergeResult() {
-    // Raw view default: file1 wins all diffs (no per-field resolution UI).
     final choices = <String, dynamic>{
       for (final d in _diffs) d.path: d.valueA,
     };
@@ -456,6 +531,7 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
   }
 
   Widget _contentView() {
+    final t = widget.theme;
     if (widget.isDiffView) {
       return DiffViewPanel(
         diffs: _diffs,
@@ -469,10 +545,10 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
         showDiffDetailButton: widget.showDiffDetailButton,
         diffDetailButtonAlignment: widget.diffDetailButtonAlignment,
         toJsonConverter: widget.toJsonConverter,
+        theme: t,
       );
     }
 
-    // Raw view: optional table selector (SQLite only) + RawViewPanel + FAB.
     return Stack(
       children: [
         Column(
@@ -482,19 +558,19 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
               _tableSelector(),
             Expanded(
               child: RawViewPanel(
-                // Key forces a full rebuild (cache reset) when the table changes.
                 key: ValueKey(_selectedTable),
                 loadPageFile1: _pageLoaderFile1,
                 loadPageFile2: _pageLoaderFile2,
                 recordsPerPage: widget.recordsPerPage ?? 10,
                 totalPages: _rawTotalPages,
+                theme: t,
               ),
             ),
           ],
         ),
         Positioned(
-          right: 16,
-          bottom: 16,
+          right: t.fabRightOffset,
+          bottom: t.fabBottomOffset,
           child: FloatingActionButton.extended(
             onPressed: () =>
                 widget.onMergeComplete(_buildRawViewMergeResult()),

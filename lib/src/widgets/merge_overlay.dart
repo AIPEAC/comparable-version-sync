@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../models/diff_context.dart';
+import '../theme/comparable_version_theme.dart';
 import 'diff_detail_screen.dart';
 
 enum _MergeChoice { local, incoming, manual }
@@ -12,29 +13,44 @@ enum _MergeChoice { local, incoming, manual }
 /// Git-conflict-style merge resolution overlay for a single [DiffContext].
 ///
 /// Presents three options:
-///   1. Accept Local (file1 value).
-///   2. Accept Incoming (file2 value).
-///   3. Manual merge (editable text/SQL field).
 ///
-/// An optional [mergeWidget] overrides the default plain-text display of the diff.
+/// 1. **Accept Local** — keep the value from file 1.
+/// 2. **Accept Incoming** — keep the value from file 2.
+/// 3. **Manual Edit** — free-text edit of the value.
 ///
-/// A floating action button at the bottom of the overlay confirms the choice
-/// and calls [onResolved] with the chosen/edited value.
+/// An optional [mergeWidget] replaces the default plain-text value display.
+/// A floating action button ("Confirm") applies the choice and pops the route.
+///
+/// All visual dimensions are controlled via [theme].
 class MergeOverlay extends StatefulWidget {
+  /// The diff to resolve.
   final DiffContext diff;
+
+  /// Optional custom widget rendered above the three choice cards.
+  /// When provided the default value display is suppressed.
   final Widget Function(DiffContext)? mergeWidget;
+
+  /// Called with the resolved value when the user taps "Confirm".
   final void Function(dynamic resolvedValue) onResolved;
 
-  /// Whether to show a "View Raw Diff" button.
+  /// Whether to show a "View Raw Diff" button that navigates to
+  /// [DiffDetailScreen]. Default: `false`.
   final bool showDiffDetailButton;
 
-  /// Alignment of the "View Raw Diff" button inside the Scaffold body.
-  /// When [Alignment.topRight] (the default), it is placed in AppBar actions.
+  /// Where to place the "View Raw Diff" button.
+  ///
+  /// [Alignment.topRight] (the default) adds it to the [AppBar] actions.
+  /// Any other value wraps the body in a [Stack] and [Align]s it there.
   final Alignment diffDetailButtonAlignment;
 
-  /// Optional converter for non-serialisable values.
+  /// Optional converter for non-serialisable values passed through to
+  /// [DiffDetailScreen].
   final String Function(dynamic)? toJsonConverter;
 
+  /// Visual configuration. Defaults to [ComparableVersionTheme.new].
+  final ComparableVersionTheme theme;
+
+  /// Creates a [MergeOverlay] for the given [diff].
   const MergeOverlay({
     super.key,
     required this.diff,
@@ -43,6 +59,7 @@ class MergeOverlay extends StatefulWidget {
     this.showDiffDetailButton = false,
     this.diffDetailButtonAlignment = Alignment.topRight,
     this.toJsonConverter,
+    this.theme = const ComparableVersionTheme(),
   });
 
   @override
@@ -95,6 +112,7 @@ class _MergeOverlayState extends State<MergeOverlay> {
         builder: (_) => DiffDetailScreen(
           diff: widget.diff,
           toJsonConverter: widget.toJsonConverter,
+          theme: widget.theme,
         ),
       ),
     );
@@ -102,12 +120,13 @@ class _MergeOverlayState extends State<MergeOverlay> {
 
   @override
   Widget build(BuildContext context) {
+    final t = widget.theme;
     final showInAppBar = widget.showDiffDetailButton &&
         widget.diffDetailButtonAlignment == Alignment.topRight;
     final showInBody = widget.showDiffDetailButton && !showInAppBar;
 
     final scrollBody = SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, t.overlayBodyBottomPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -120,32 +139,31 @@ class _MergeOverlayState extends State<MergeOverlay> {
           _ChoiceCard(
             label: 'Accept Local (File 1)',
             value: widget.diff.valueA,
-            showMergeWidget: widget.mergeWidget == null,
-            mergeWidget: null,
             diff: widget.diff,
             choice: _MergeChoice.local,
             currentChoice: _choice,
             accentColor: Colors.green,
             onSelect: () => setState(() => _choice = _MergeChoice.local),
+            theme: t,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: t.cardPadding),
           _ChoiceCard(
             label: 'Accept Incoming (File 2)',
             value: widget.diff.valueB,
-            showMergeWidget: false,
-            mergeWidget: null,
             diff: widget.diff,
             choice: _MergeChoice.incoming,
             currentChoice: _choice,
             accentColor: Colors.blue,
             onSelect: () => setState(() => _choice = _MergeChoice.incoming),
+            theme: t,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: t.cardPadding),
           _ManualCard(
             controller: _controller,
             choice: _MergeChoice.manual,
             currentChoice: _choice,
             onSelect: () => setState(() => _choice = _MergeChoice.manual),
+            theme: t,
           ),
         ],
       ),
@@ -181,7 +199,7 @@ class _MergeOverlayState extends State<MergeOverlay> {
                 Align(
                   alignment: widget.diffDetailButtonAlignment,
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: EdgeInsets.all(t.cardPadding),
                     child: FilledButton.icon(
                       onPressed: _openDiffDetail,
                       icon: const Icon(Icons.difference),
@@ -202,50 +220,51 @@ class _MergeOverlayState extends State<MergeOverlay> {
 }
 
 // ---------------------------------------------------------------------------
+// _ChoiceCard
+// ---------------------------------------------------------------------------
 
 class _ChoiceCard extends StatelessWidget {
   final String label;
   final dynamic value;
-  final bool showMergeWidget;
-  final Widget Function(DiffContext)? mergeWidget;
   final DiffContext diff;
   final _MergeChoice choice;
   final _MergeChoice currentChoice;
   final Color accentColor;
   final VoidCallback onSelect;
+  final ComparableVersionTheme theme;
 
   const _ChoiceCard({
     required this.label,
     required this.value,
-    required this.showMergeWidget,
-    required this.mergeWidget,
     required this.diff,
     required this.choice,
     required this.currentChoice,
     required this.accentColor,
     required this.onSelect,
+    required this.theme,
   });
 
   bool get _selected => currentChoice == choice;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final appTheme = Theme.of(context);
+    final t = theme;
     return GestureDetector(
       onTap: onSelect,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: t.cardAnimationDuration,
         decoration: BoxDecoration(
           color: _selected
-              ? theme.colorScheme.primaryContainer
-              : theme.colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(12),
+              ? appTheme.colorScheme.primaryContainer
+              : appTheme.colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(t.cardBorderRadius),
           border: Border.all(
-            color: _selected ? accentColor : theme.dividerColor,
-            width: _selected ? 2 : 1,
+            color: _selected ? accentColor : appTheme.dividerColor,
+            width: _selected ? t.selectedBorderWidth : t.unselectedBorderWidth,
           ),
         ),
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(t.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -255,10 +274,10 @@ class _ChoiceCard extends StatelessWidget {
                   _selected
                       ? Icons.radio_button_checked
                       : Icons.radio_button_unchecked,
-                  size: 20,
+                  size: t.iconSize,
                   color: _selected ? accentColor : Colors.grey,
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: t.cardPadding / 1.5),
                 Expanded(
                   child: Text(
                     label,
@@ -270,8 +289,8 @@ class _ChoiceCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            _ValueDisplay(value: value),
+            SizedBox(height: t.cardPadding / 1.5),
+            _ValueDisplay(value: value, monoFontSize: t.monoFontSize),
           ],
         ),
       ),
@@ -280,38 +299,43 @@ class _ChoiceCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
+// _ManualCard
+// ---------------------------------------------------------------------------
 
 class _ManualCard extends StatelessWidget {
   final TextEditingController controller;
   final _MergeChoice choice;
   final _MergeChoice currentChoice;
   final VoidCallback onSelect;
+  final ComparableVersionTheme theme;
 
   const _ManualCard({
     required this.controller,
     required this.choice,
     required this.currentChoice,
     required this.onSelect,
+    required this.theme,
   });
 
   bool get _selected => currentChoice == choice;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final appTheme = Theme.of(context);
+    final t = theme;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
+      duration: t.cardAnimationDuration,
       decoration: BoxDecoration(
         color: _selected
-            ? theme.colorScheme.primaryContainer
-            : theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
+            ? appTheme.colorScheme.primaryContainer
+            : appTheme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(t.cardBorderRadius),
         border: Border.all(
-          color: _selected ? Colors.orange : theme.dividerColor,
-          width: _selected ? 2 : 1,
+          color: _selected ? Colors.orange : appTheme.dividerColor,
+          width: _selected ? t.selectedBorderWidth : t.unselectedBorderWidth,
         ),
       ),
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(t.cardPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -321,10 +345,10 @@ class _ManualCard extends StatelessWidget {
                 _selected
                     ? Icons.radio_button_checked
                     : Icons.radio_button_unchecked,
-                size: 20,
+                size: t.iconSize,
                 color: _selected ? Colors.orange : Colors.grey,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: t.cardPadding / 1.5),
               Text(
                 'Manual Edit',
                 style: TextStyle(
@@ -334,19 +358,22 @@ class _ManualCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: t.cardPadding / 1.5),
           TextField(
             controller: controller,
             onTap: onSelect,
             maxLines: null,
-            style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: t.monoFontSize,
+            ),
             decoration: InputDecoration(
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(t.textFieldBorderRadius),
               ),
               hintText: 'Enter merged value…',
               filled: true,
-              fillColor: theme.colorScheme.surface,
+              fillColor: appTheme.colorScheme.surface,
             ),
           ),
         ],
@@ -356,11 +383,14 @@ class _ManualCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
+// _ValueDisplay
+// ---------------------------------------------------------------------------
 
 class _ValueDisplay extends StatelessWidget {
   final dynamic value;
+  final double monoFontSize;
 
-  const _ValueDisplay({required this.value});
+  const _ValueDisplay({required this.value, required this.monoFontSize});
 
   @override
   Widget build(BuildContext context) {
@@ -375,7 +405,7 @@ class _ValueDisplay extends StatelessWidget {
         : const JsonEncoder.withIndent('  ').convert(value);
     return SelectableText(
       text,
-      style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+      style: TextStyle(fontFamily: 'monospace', fontSize: monoFontSize),
     );
   }
 }
