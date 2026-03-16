@@ -9,7 +9,7 @@
 - Updated `SqliteComparator` to set `parentValueA`/`parentValueB` to the full row map for field-level diffs and to the row map / null for missing-row diffs.
 - Implemented `lib/src/widgets/diff_detail_screen.dart`: read-only git-style side-by-side view with synchronized vertical scroll, independent horizontal scroll per panel, draggable split divider, shared horizontal pan bar, and diff-key highlighting (green = local, amber = incoming).
 
-### agent-002
+### A-002
 - Added `showAcceptCompatibleButton` and `acceptCompatibleByDefault` parameters to `ComparableVersionWidget.diffView` and wired through to `DiffViewPanel`.
 - `DiffViewPanel` now auto-resolves all compatible diffs (`isCompatible == true`) on load when `acceptCompatibleByDefault` is true; toggling the `FilterChip` off removes only auto-accepted resolutions, preserving manually-resolved ones.
 - Added `_compatibleChipBar()` toolbar above the diff list showing a `FilterChip` labelled `"Auto-accept compatible (N)"`.
