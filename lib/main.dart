@@ -125,6 +125,9 @@ class _HarnessHomeState extends State<_HarnessHome> {
       file2Path: _path2!,
       comparisonMode: ComparisonMode.allDiffs,
       diffsPerPage: 10,
+      showAcceptCompatibleButton: true,
+      acceptCompatibleByDefault: true,
+      showDiffDetailButton: true,
       displayWidget: (diff) => Padding(
         padding: const EdgeInsets.only(top: 4),
         child: Text(
