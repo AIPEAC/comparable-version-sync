@@ -1,0 +1,15 @@
+name: comparable_version_sync_example
+description: Example app for the comparable_version_sync package.
+publish_to: none
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  comparable_version_sync:
+    path: ..
+
+flutter:
+  uses-material-design: true
