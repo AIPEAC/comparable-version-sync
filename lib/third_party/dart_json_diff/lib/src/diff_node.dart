@@ -1,7 +1,7 @@
 // Copyright 2014 Google Inc. All Rights Reserved.
 // Licensed under the Apache License, Version 2.0, found in the LICENSE file.
 
-part of json_diff;
+part of '../json_diff.dart';
 
 /// A hierarchical structure representing the differences between two JSON
 /// objects.

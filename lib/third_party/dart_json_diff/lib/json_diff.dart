@@ -17,8 +17,6 @@
 ///
 /// This [DiffNode] object is a hierarchical structure (like JSON) of the
 /// differences between the two objects.
-library json_diff;
-
 import 'dart:convert';
 import 'package:collection/collection.dart';
 

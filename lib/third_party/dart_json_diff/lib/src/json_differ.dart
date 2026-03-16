@@ -1,7 +1,7 @@
 // Copyright 2014 Google Inc. All Rights Reserved.
 // Licensed under the Apache License, Version 2.0, found in the LICENSE file.
 
-part of json_diff;
+part of '../json_diff.dart';
 
 /// A configurable class that can produce a diff of two JSON Strings.
 class JsonDiffer {
