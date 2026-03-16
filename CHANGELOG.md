@@ -1,4 +1,8 @@
 # Changelog
+## 1.0.2+6
+- fixed LICENSE copyright year.
+- fixed homepage in pubspec.yaml.
+
 ## 1.0.2+5
 
 ### A-001
