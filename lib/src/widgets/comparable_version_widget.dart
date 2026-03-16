@@ -116,6 +116,9 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
   Database? _db2;
   List<String> _sqliteTables = [];
 
+  /// Currently selected table for SQLite raw view.
+  String? _selectedTable;
+
   // Total pages for RawViewPanel.
   int _rawTotalPages = 1;
 
@@ -213,14 +216,28 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
     _sqliteTables = tableRows.map((r) => r['name'] as String).toList();
 
     if (_sqliteTables.isNotEmpty) {
-      final countRows = await _db1!.rawQuery(
-        'SELECT COUNT(*) FROM "${_sqliteTables.first}"',
-      );
-      final count = countRows.isNotEmpty
-          ? (countRows.first.values.first as int?) ?? 0
-          : 0;
-      final perPage = widget.recordsPerPage ?? 10;
-      _rawTotalPages = max(1, (count / perPage).ceil());
+      _selectedTable = _sqliteTables.first;
+      await _recomputeSqlitePages(_selectedTable!);
+    }
+  }
+
+  /// Recomputes [_rawTotalPages] for the given [table] and triggers a rebuild.
+  Future<void> _recomputeSqlitePages(String table) async {
+    final countRows = await _db1!.rawQuery(
+      'SELECT COUNT(*) FROM "$table"',
+    );
+    final count = countRows.isNotEmpty
+        ? (countRows.first.values.first as int?) ?? 0
+        : 0;
+    final perPage = widget.recordsPerPage ?? 10;
+    _rawTotalPages = max(1, (count / perPage).ceil());
+  }
+
+  /// Called when the user picks a different table from the dropdown.
+  Future<void> _onTableSelected(String table) async {
+    await _recomputeSqlitePages(table);
+    if (mounted) {
+      setState(() => _selectedTable = table);
     }
   }
 
@@ -250,8 +267,8 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
   }
 
   Future<List<Map<String, dynamic>>> _sqlitePage(Database db, int page) async {
-    if (_sqliteTables.isEmpty) return [];
-    final table = _sqliteTables.first;
+    final table = _selectedTable;
+    if (table == null) return [];
     final perPage = widget.recordsPerPage ?? 10;
     final rows = await db.rawQuery(
       'SELECT * FROM "$table" LIMIT $perPage OFFSET ${page * perPage}',
@@ -419,14 +436,25 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
       );
     }
 
-    // Raw view: RawViewPanel + "Accept File 1" FAB.
+    // Raw view: optional table selector (SQLite only) + RawViewPanel + FAB.
     return Stack(
       children: [
-        RawViewPanel(
-          loadPageFile1: _pageLoaderFile1,
-          loadPageFile2: _pageLoaderFile2,
-          recordsPerPage: widget.recordsPerPage ?? 10,
-          totalPages: _rawTotalPages,
+        Column(
+          children: [
+            if (widget.fileType == FileType.sqlite &&
+                _sqliteTables.length > 1)
+              _tableSelector(),
+            Expanded(
+              child: RawViewPanel(
+                // Key forces a full rebuild (cache reset) when the table changes.
+                key: ValueKey(_selectedTable),
+                loadPageFile1: _pageLoaderFile1,
+                loadPageFile2: _pageLoaderFile2,
+                recordsPerPage: widget.recordsPerPage ?? 10,
+                totalPages: _rawTotalPages,
+              ),
+            ),
+          ],
         ),
         Positioned(
           right: 16,
@@ -439,6 +467,36 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _tableSelector() {
+    return ColoredBox(
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Row(
+          children: [
+            const Text('Table:', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: DropdownButton<String>(
+                value: _selectedTable,
+                isExpanded: true,
+                underline: const SizedBox.shrink(),
+                items: _sqliteTables
+                    .map(
+                      (t) => DropdownMenuItem(value: t, child: Text(t)),
+                    )
+                    .toList(),
+                onChanged: (t) {
+                  if (t != null && t != _selectedTable) _onTableSelected(t);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
