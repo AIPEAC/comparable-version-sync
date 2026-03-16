@@ -1,7 +1,6 @@
 // Copyright 2026 comparable_version_sync authors. All rights reserved.
 
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart'
@@ -158,6 +157,16 @@ class ComparableVersionWidget extends StatefulWidget {
   /// `true` when constructed via [diffView]; `false` when via [rawView].
   final bool isDiffView;
 
+  /// When true, JSON diffs/raw view use the in-memory [jsonA]/[jsonB] values
+  /// instead of reading from [file1Path]/[file2Path]. This allows the package
+  /// to avoid `dart:io` while still providing a rich visualisation API.
+  final bool useInMemoryJson;
+
+  /// In-memory JSON inputs corresponding to the \"left\"/\"right\" side.
+  /// Only used when [fileType] is [FileType.json] and [useInMemoryJson] is true.
+  final dynamic jsonA;
+  final dynamic jsonB;
+
   // ---------------------------------------------------------------------------
   // Constructors
   // ---------------------------------------------------------------------------
@@ -175,6 +184,9 @@ class ComparableVersionWidget extends StatefulWidget {
     required this.onMergeComplete,
     this.theme = const ComparableVersionTheme(),
   })  : isDiffView = false,
+        useInMemoryJson = false,
+        jsonA = null,
+        jsonB = null,
         diffsPerPage = null,
         displayWidget = null,
         mergeWidget = null,
@@ -206,7 +218,63 @@ class ComparableVersionWidget extends StatefulWidget {
     required this.onMergeComplete,
     this.theme = const ComparableVersionTheme(),
   })  : isDiffView = true,
+        useInMemoryJson = false,
+        jsonA = null,
+        jsonB = null,
         recordsPerPage = null;
+
+  /// Diff view that works purely with in-memory JSON structures (no file I/O).
+  /// [jsonA] and [jsonB] should be decoded JSON roots (`Map`/`List`/scalar).
+  const ComparableVersionWidget.diffViewFromJson({
+    super.key,
+    required dynamic jsonA,
+    required dynamic jsonB,
+    required this.comparisonMode,
+    this.diffsPerPage = 10,
+    required Widget Function(DiffContext) this.displayWidget,
+    this.mergeWidget,
+    this.showAcceptCompatibleButton = false,
+    this.acceptCompatibleByDefault = true,
+    this.showDiffDetailButton = false,
+    this.diffDetailButtonAlignment = Alignment.topRight,
+    this.toJsonConverter,
+    required this.returnType,
+    required this.onMergeComplete,
+    this.theme = const ComparableVersionTheme(),
+  })  : fileType = FileType.json,
+        file1Path = '',
+        file2Path = '',
+        isDiffView = true,
+        useInMemoryJson = true,
+        jsonA = jsonA,
+        jsonB = jsonB,
+        recordsPerPage = null;
+
+  /// Raw-view mode that works purely with in-memory JSON structures.
+  const ComparableVersionWidget.rawViewFromJson({
+    super.key,
+    required dynamic jsonA,
+    required dynamic jsonB,
+    this.recordsPerPage = 10,
+    required this.returnType,
+    required this.onMergeComplete,
+    this.theme = const ComparableVersionTheme(),
+  })  : fileType = FileType.json,
+        file1Path = '',
+        file2Path = '',
+        comparisonMode = ComparisonMode.allDiffs,
+        diffsPerPage = null,
+        displayWidget = null,
+        mergeWidget = null,
+        showAcceptCompatibleButton = false,
+        acceptCompatibleByDefault = true,
+        showDiffDetailButton = false,
+        diffDetailButtonAlignment = Alignment.topRight,
+        toJsonConverter = null,
+        isDiffView = false,
+        useInMemoryJson = true,
+        jsonA = jsonA,
+        jsonB = jsonB;
 
   @override
   State<ComparableVersionWidget> createState() =>
@@ -273,9 +341,18 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
   }
 
   Future<void> _runComparison() async {
-    final BaseComparator comparator = widget.fileType == FileType.json
-        ? JsonComparator()
-        : SqliteComparator();
+    if (widget.fileType == FileType.json && widget.useInMemoryJson) {
+      final comparator = JsonComparator();
+      _diffs = comparator.compareRoots(
+        widget.jsonA,
+        widget.jsonB,
+        widget.comparisonMode,
+      );
+      return;
+    }
+
+    final BaseComparator comparator =
+        widget.fileType == FileType.json ? JsonComparator() : SqliteComparator();
     _diffs = await comparator.compare(
       widget.file1Path,
       widget.file2Path,
@@ -285,7 +362,7 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
 
   Future<void> _loadRawData() async {
     if (widget.fileType == FileType.json) {
-      await _loadJsonData();
+      _loadJsonData();
     } else {
       await _loadSqliteData();
     }
@@ -293,15 +370,16 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
 
   // ── JSON raw data loading ──────────────────────────────────────────────────
 
-  Future<void> _loadJsonData() async {
-    if (kIsWeb) {
+  void _loadJsonData() {
+    if (widget.useInMemoryJson) {
+      _jsonRawData1 = widget.jsonA;
+      _jsonRawData2 = widget.jsonB;
+    } else {
+      // No in-memory JSON provided and this package no longer performs file I/O
+      // for JSON. Fall back to empty structures.
       _jsonRawData1 = <String, dynamic>{};
       _jsonRawData2 = <String, dynamic>{};
-      _rawTotalPages = 1;
-      return;
     }
-    _jsonRawData1 = jsonDecode(await File(widget.file1Path).readAsString());
-    _jsonRawData2 = jsonDecode(await File(widget.file2Path).readAsString());
 
     final perPage = widget.recordsPerPage ?? 10;
     _rawTotalPages =

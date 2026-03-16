@@ -47,11 +47,10 @@ flutter pub get
 ```dart
 import 'package:comparable_version_sync/comparable_version_sync.dart';
 
-// Diff view — most commonly used
-ComparableVersionWidget.diffView(
-  fileType: FileType.json,
-  file1Path: '/path/to/v1.json',
-  file2Path: '/path/to/v2.json',
+// Diff view from in-memory JSON (no file I/O inside the package)
+ComparableVersionWidget.diffViewFromJson(
+  jsonA: jsonDecode(jsonStringA),   // or a Map/List you already have
+  jsonB: jsonDecode(jsonStringB),
   comparisonMode: ComparisonMode.allDiffs,
   diffsPerPage: 10,
   displayWidget: (diff) => Text(
@@ -70,15 +69,14 @@ ComparableVersionWidget.diffView(
 
 ## Display Modes
 
-### `ComparableVersionWidget.diffView`
+### `ComparableVersionWidget.diffViewFromJson`
 
 Shows every detected difference as a tappable tile. Tapping opens a full-screen merge overlay where the user picks Local, Incoming, or types a custom value. A "Finalize" FAB collects all choices and calls `onMergeComplete`.
 
 ```dart
-ComparableVersionWidget.diffView(
-  fileType: FileType.json,
-  file1Path: path1,
-  file2Path: path2,
+ComparableVersionWidget.diffViewFromJson(
+  jsonA: jsonA,
+  jsonB: jsonB,
   comparisonMode: ComparisonMode.allDiffs,
   diffsPerPage: 10,
   displayWidget: (diff) => Text('${diff.valueA} → ${diff.valueB}'),
@@ -93,18 +91,33 @@ ComparableVersionWidget.diffView(
 )
 ```
 
-### `ComparableVersionWidget.rawView`
+### `ComparableVersionWidget.rawViewFromJson`
 
-Shows the raw records from both files side-by-side (or in a tab view on narrow screens), paginated. No per-field resolution — "Accept File 1" FAB immediately returns file 1 as the winner.
+Shows the raw JSON records from both in-memory structures side-by-side (or in a tab view on narrow screens), paginated. No per-field resolution — "Accept File 1" FAB immediately returns the left side as the winner.
 
 ```dart
-ComparableVersionWidget.rawView(
-  fileType: FileType.sqlite,
-  file1Path: 'path/to/db_v1.sqlite',
-  file2Path: 'path/to/db_v2.sqlite',
-  comparisonMode: ComparisonMode.incompatibleOnly,
+ComparableVersionWidget.rawViewFromJson(
+  jsonA: jsonA,
+  jsonB: jsonB,
   recordsPerPage: 10,
-  returnType: ReturnType.both,
+  returnType: ReturnType.json,
+  onMergeComplete: (result) => handleMerge(result),
+)
+```
+
+### `ComparableVersionWidget.diffView` and `.rawView` (file-based)
+
+For apps that prefer to pass file paths (JSON or SQLite), the original
+constructors are still available:
+
+```dart
+ComparableVersionWidget.diffView(
+  fileType: FileType.json,
+  file1Path: path1,
+  file2Path: path2,
+  comparisonMode: ComparisonMode.incompatibleOnly,
+  diffsPerPage: 10,
+  returnType: ReturnType.json,
   onMergeComplete: (result) => handleMerge(result),
 )
 ```
@@ -115,19 +128,16 @@ ComparableVersionWidget.rawView(
 
 ### `ComparableVersionWidget`
 
-#### Shared parameters
+#### Shared parameters (all constructors)
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `fileType` | `FileType` | — **required** | `FileType.json` or `FileType.sqlite` |
-| `file1Path` | `String` | — **required** | Path to the first (local/base) file |
-| `file2Path` | `String` | — **required** | Path to the second (incoming/new) file |
 | `comparisonMode` | `ComparisonMode` | — **required** | `allDiffs` or `incompatibleOnly` |
 | `returnType` | `ReturnType` | — **required** | `json`, `sql`, or `both` |
 | `onMergeComplete` | `void Function(MergeResult)` | — **required** | Called with the merge result |
 | `theme` | `ComparableVersionTheme` | `ComparableVersionTheme()` | Visual configuration |
 
-#### `diffView` only
+#### `diffViewFromJson` only
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
@@ -140,11 +150,17 @@ ComparableVersionWidget.rawView(
 | `diffDetailButtonAlignment` | `Alignment` | `Alignment.topRight` | Placement of the raw diff button |
 | `toJsonConverter` | `String Function(dynamic)?` | `null` | Fallback serialiser for custom types |
 
-#### `rawView` only
+#### `rawViewFromJson` only
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `recordsPerPage` | `int` | `10` | Records shown per page |
+
+#### File-based constructors (`diffView` / `rawView`)
+
+These legacy constructors accept file paths and a `FileType` (JSON/SQLite).
+On JSON, they may use platform-specific I/O; on SQLite they use `sqflite` /
+FFI factories to open the databases.
 
 ---
 

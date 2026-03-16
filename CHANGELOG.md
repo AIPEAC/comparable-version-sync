@@ -1,7 +1,23 @@
 # Changelog
+## 1.1.2+0
+
+- Added data-based JSON constructors: `ComparableVersionWidget.diffViewFromJson`
+  and `ComparableVersionWidget.rawViewFromJson`, which accept decoded JSON
+  roots (`Map`/`List`/scalar) and perform comparison/visualisation without any
+  `dart:io` inside the package.
+- Updated `JsonComparator` to work purely on in-memory JSON values via
+  `compareStrings` / `compareRoots`; the old file-path based `compare` now
+  throws `UnsupportedError` and is only used by the legacy file-based widget
+  constructors.
+- Kept the original file-path constructors (`diffView` / `rawView`) for apps
+  that prefer to pass paths (JSON or SQLite), but all documentation now
+  recommends the new `*FromJson` APIs for JSON.
+- Refreshed `ARCHITECTURE.md`, `README.md`, and `pubspec.yaml` docs to match
+  the new JSON data-first design.
+
 ## 1.0.2+7
-- fixed homepage in pubspec.yaml.
-- corrected LICENSE copyright display
+- Fixed homepage in pubspec.yaml.
+- Corrected LICENSE copyright display.
 
 ## 1.0.2+6
 - fixed LICENSE copyright year.

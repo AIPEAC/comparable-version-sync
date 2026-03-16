@@ -21,7 +21,7 @@ lib/
       merge_result.dart              # Final output: mergedJson / mergedRows
     comparison/
       base_comparator.dart           # Abstract interface
-      json_comparator.dart           # JSON diff via local dart-json_diff clone
+      json_comparator.dart           # Built-in JSON comparator (no dart:io)
       sqlite_comparator.dart         # SQLite diff via sqflite; lazy page-by-page loading
       compatibility_checker.dart     # Filters diffs to true conflicts only (mode 1)
       context_resolver.dart          # Finds smallest shared parent path
@@ -30,8 +30,7 @@ lib/
       raw_view_panel.dart            # Display mode 0: paginated raw records
       diff_view_panel.dart           # Display mode 1: paginated diff items
       merge_overlay.dart             # Conflict resolution UI with FAB
-  third_party/
-    dart_json_diff/                  # Local clone of google/dart-json_diff (Apache 2.0)
+  third_party/                       # Legacy vendor assets only (no runtime code)
 ```
 
 ---
@@ -100,8 +99,9 @@ class MergeResult {
 ## Comparison Logic
 
 ### JSON
-Uses a local clone of [google/dart-json_diff](https://github.com/google/dart-json_diff) (Apache 2.0).
-Integrated as a local path dependency. Produces a flat list of `DiffContext` from the diff result.
+Uses a lightweight, built-in comparator that walks the decoded JSON object
+graph directly (Maps/Lists/scalars). No external diff package and no `dart:io`;
+callers are responsible for loading JSON data before passing it in.
 
 ### SQLite
 Uses the `sqflite` package. Lazy-loads records via `LIMIT`/`OFFSET` — no full-table load.

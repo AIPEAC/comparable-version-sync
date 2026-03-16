@@ -1,12 +1,10 @@
 // Copyright 2026 comparable_version_sync authors. All rights reserved.
 //
 // Lightweight JSON comparator that walks the decoded JSON structure directly.
-// No external diff library is used to keep dependencies minimal.
+// No external diff library and no `dart:io` — callers are responsible for
+// loading JSON data (as strings or decoded structures) before passing it in.
 
 import 'dart:convert';
-import 'dart:io' as io;
-
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../enums/comparison_mode.dart';
 import '../models/diff_context.dart';
@@ -14,37 +12,40 @@ import 'base_comparator.dart';
 import 'compatibility_checker.dart';
 import 'context_resolver.dart';
 
-/// Compares two JSON files or JSON strings and produces a list of [DiffContext]
-/// entries without relying on external diff packages.
+/// Compares JSON values and produces a list of [DiffContext] entries without
+/// relying on external diff packages or `dart:io`.
 class JsonComparator implements BaseComparator {
+  /// File-path based comparison is no longer supported in this package.
+  /// Call [compareStrings] or [compareRoots] via the data-based constructors
+  /// on [ComparableVersionWidget] instead.
   @override
   Future<List<DiffContext>> compare(
     String file1Path,
     String file2Path,
     ComparisonMode mode,
   ) async {
-    if (kIsWeb) {
-      throw UnsupportedError(
-        'JSON file path comparison is not supported on web. '
-        'Load JSON strings yourself and call compareStrings().',
-      );
-    }
-
-    final left = await io.File(file1Path).readAsString();
-    final right = await io.File(file2Path).readAsString();
-    return compareStrings(left, right, mode);
+    throw UnsupportedError(
+      'JsonComparator.compare(file1Path, file2Path, ...) is no longer '
+      'supported. Load JSON yourself and use the data-based constructors, '
+      'which call JsonComparator.compareStrings/compareRoots internally.',
+    );
   }
 
-  /// Compares two JSON strings directly — safe on all platforms, including web
-  /// when the caller provides the strings.
+  /// Compares two JSON strings directly — safe on all platforms when the
+  /// caller provides the strings.
   List<DiffContext> compareStrings(
     String leftJson,
     String rightJson,
     ComparisonMode mode,
-  ) {
-    final rootA = jsonDecode(leftJson);
-    final rootB = jsonDecode(rightJson);
+  ) =>
+      compareRoots(jsonDecode(leftJson), jsonDecode(rightJson), mode);
 
+  /// Compares two already-decoded JSON roots (`Map` / `List` / scalar).
+  List<DiffContext> compareRoots(
+    dynamic rootA,
+    dynamic rootB,
+    ComparisonMode mode,
+  ) {
     final results = <DiffContext>[];
     final checker = CompatibilityChecker();
     final resolver = ContextResolver();
