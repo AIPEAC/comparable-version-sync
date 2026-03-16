@@ -352,8 +352,8 @@ final compactTheme = const ComparableVersionTheme().copyWith(
 ### JSON
 
 - Accepts any valid JSON file whose root is a `Map` or `List`.
-- Comparison is powered by the vendored `dart_json_diff` library (Apache 2.0), which walks the full object graph recursively.
-- Web: file I/O (`dart:io`) is unavailable; raw view shows empty pages but diff view works when file paths are substituted with pre-loaded data.
+- Comparison walks the decoded JSON object graph directly with a lightweight\n  built-in comparator (no external diff dependency).
+- Web: file I/O (`dart:io`) is unavailable; raw view shows empty pages but diff\n  view works when file paths are substituted with pre-loaded data.
 
 ### SQLite
 
@@ -419,7 +419,7 @@ comparable_version_sync/
 │       │   ├── base_comparator.dart
 │       │   ├── compatibility_checker.dart
 │       │   ├── context_resolver.dart
-│       │   ├── json_comparator.dart     ← uses dart_json_diff
+│       │   ├── json_comparator.dart     ← built-in JSON comparator
 │       │   └── sqlite_comparator.dart   ← uses sqflite
 │       └── widgets/
 │           ├── comparable_version_widget.dart  ← entry point
@@ -427,8 +427,7 @@ comparable_version_sync/
 │           ├── merge_overlay.dart
 │           ├── diff_detail_screen.dart
 │           └── raw_view_panel.dart
-└── lib/third_party/
-    └── dart_json_diff/                  ← vendored, Apache 2.0
+└── lib/third_party/                     ← (no runtime code; only legacy vendor assets if present)
 ```
 
 **Public API surface** (exported by the barrel):
@@ -458,6 +457,4 @@ Everything else is internal.
 ## License
 
 This package is APACHE 2.0 licensed. See [LICENSE](LICENSE).
-
-The vendored `dart_json_diff` library (`lib/third_party/dart_json_diff/`) is copyright Google LLC and licensed under the Apache 2.0 License. See [lib/src/vendor/LICENSE](lib/src/vendor/LICENSE).
 
