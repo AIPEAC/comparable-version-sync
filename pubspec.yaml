@@ -1,9 +1,5 @@
 name: comparable_version_sync
-description: >-
-  A Flutter package providing a GUI widget to compare two versions of JSON or
-  SQLite files side-by-side, with git-conflict-style merge resolution.
-  Fully configurable via ComparableVersionTheme — every dimension, colour, and
-  animation parameter can be overridden.
+description: Compare and merge JSON or SQLite versions with a configurable Flutter diff/merge widget.
 version: 1.0.2+3
 homepage: https://github.com/your-org/comparable_version_sync
 
