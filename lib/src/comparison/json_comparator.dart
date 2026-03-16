@@ -3,8 +3,9 @@
 // Uses the local clone of google/dart-json_diff (Apache 2.0).
 // See lib/third_party/dart_json_diff/LICENSE for license details.
 
-import 'dart:io';
+import 'dart:io' as io;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:json_diff/json_diff.dart';
 
 import '../enums/comparison_mode.dart';
@@ -14,6 +15,9 @@ import 'compatibility_checker.dart';
 import 'context_resolver.dart';
 
 /// Compares two JSON files using the locally cloned dart-json_diff library.
+///
+/// On web, `dart:io` is unavailable. Callers on web must use
+/// [compareStrings] directly instead of [compare].
 class JsonComparator implements BaseComparator {
   @override
   Future<List<DiffContext>> compare(
@@ -21,8 +25,15 @@ class JsonComparator implements BaseComparator {
     String file2Path,
     ComparisonMode mode,
   ) async {
-    final left = await File(file1Path).readAsString();
-    final right = await File(file2Path).readAsString();
+    if (kIsWeb) {
+      throw UnsupportedError(
+        'JSON file path comparison is not supported on web — '
+        'pass pre-loaded JSON strings via JsonComparator.compareStrings() instead.',
+      );
+    }
+
+    final left = await io.File(file1Path).readAsString();
+    final right = await io.File(file2Path).readAsString();
 
     final root = JsonDiffer(left, right).diff();
 
@@ -32,6 +43,23 @@ class JsonComparator implements BaseComparator {
 
     _walkNode(root, results, checker, resolver);
 
+    if (mode == ComparisonMode.incompatibleOnly) {
+      return checker.filterIncompatible(results);
+    }
+    return results;
+  }
+
+  /// Compares two JSON strings directly — safe on all platforms including web.
+  List<DiffContext> compareStrings(
+    String leftJson,
+    String rightJson,
+    ComparisonMode mode,
+  ) {
+    final root = JsonDiffer(leftJson, rightJson).diff();
+    final results = <DiffContext>[];
+    final checker = CompatibilityChecker();
+    final resolver = ContextResolver();
+    _walkNode(root, results, checker, resolver);
     if (mode == ComparisonMode.incompatibleOnly) {
       return checker.filterIncompatible(results);
     }
