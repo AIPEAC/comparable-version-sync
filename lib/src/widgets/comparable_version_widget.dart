@@ -227,8 +227,8 @@ class ComparableVersionWidget extends StatefulWidget {
   /// [jsonA] and [jsonB] should be decoded JSON roots (`Map`/`List`/scalar).
   const ComparableVersionWidget.diffViewFromJson({
     super.key,
-    required dynamic jsonA,
-    required dynamic jsonB,
+    required this.jsonA,
+    required this.jsonB,
     required this.comparisonMode,
     this.diffsPerPage = 10,
     required Widget Function(DiffContext) this.displayWidget,
@@ -246,15 +246,13 @@ class ComparableVersionWidget extends StatefulWidget {
         file2Path = '',
         isDiffView = true,
         useInMemoryJson = true,
-        jsonA = jsonA,
-        jsonB = jsonB,
         recordsPerPage = null;
 
   /// Raw-view mode that works purely with in-memory JSON structures.
   const ComparableVersionWidget.rawViewFromJson({
     super.key,
-    required dynamic jsonA,
-    required dynamic jsonB,
+    required this.jsonA,
+    required this.jsonB,
     this.recordsPerPage = 10,
     required this.returnType,
     required this.onMergeComplete,
@@ -272,9 +270,7 @@ class ComparableVersionWidget extends StatefulWidget {
         diffDetailButtonAlignment = Alignment.topRight,
         toJsonConverter = null,
         isDiffView = false,
-        useInMemoryJson = true,
-        jsonA = jsonA,
-        jsonB = jsonB;
+        useInMemoryJson = true;
 
   @override
   State<ComparableVersionWidget> createState() =>
