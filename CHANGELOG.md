@@ -1,4 +1,8 @@
 # Changelog
+## 1.0.2+7
+- fixed homepage in pubspec.yaml.
+- corrected LICENSE copyright display
+
 ## 1.0.2+6
 - fixed LICENSE copyright year.
 - fixed homepage in pubspec.yaml.
