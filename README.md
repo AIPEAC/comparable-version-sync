@@ -457,10 +457,7 @@ Everything else is internal.
 
 ## License
 
-This package is APACHE 2.0 licensed. See `LICENSE`.
+This package is APACHE 2.0 licensed. See [LICENSE](LICENSE).
 
-The vendored `dart_json_diff` library (`lib/third_party/dart_json_diff/`) is copyright Google LLC and licensed under the Apache 2.0 License. See `lib/third_party/dart_json_diff/LICENSE`.
-=======
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+The vendored `dart_json_diff` library (`lib/third_party/dart_json_diff/`) is copyright Google LLC and licensed under the Apache 2.0 License. See [lib/src/vendor/LICENSE](lib/src/vendor/LICENSE).
+
