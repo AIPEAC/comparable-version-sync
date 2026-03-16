@@ -458,19 +458,6 @@ Everything else is internal.
 
 ---
 
-## Platform Support
-
-| Platform | Raw view | Diff view | Notes |
-|---|---|---|---|
-| Android | ✅ | ✅ | |
-| iOS | ✅ | ✅ | |
-| macOS | ✅ | ✅ | |
-| Windows | ✅ | ✅ | Uses sqflite FFI |
-| Linux | ✅ | ✅ | Uses sqflite FFI |
-| Web | ⚠️ | ✅ | Raw view shows empty pages (no dart:io); JSON diff works via string comparison |
-
----
-
 ## License
 
 This package is APACHE 2.0 licensed. See [LICENSE](LICENSE).
