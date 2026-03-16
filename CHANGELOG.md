@@ -1,4 +1,8 @@
 # Changelog
+## 1.0.2+5
+
+### A-001
+- Add GIF for demonstration.
 
 ## 1.0.2+3
 
