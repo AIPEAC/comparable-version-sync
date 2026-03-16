@@ -3,6 +3,10 @@
 A Flutter package for comparing and merging versions of **JSON** or **SQLite** data with a fully configurable, git-conflict-style diff/merge widget.
 
 ---
+## Demostration
+![comparable_version_sync_JnULoDU6yg](https://github.com/user-attachments/assets/9e595eee-d952-432e-a38b-e585648785e7)
+
+---
 
 ## Features
 
@@ -18,7 +22,6 @@ A Flutter package for comparing and merging versions of **JSON** or **SQLite** d
 - **Lazy loading** — only the current page ±1 is kept in memory; safe for large files.
 
 ---
-
 
 ## Installation
 
