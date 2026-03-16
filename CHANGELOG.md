@@ -1,5 +1,5 @@
 # Changelog
-## 1.1.2+0
+## 1.1.0+0
 
 - Added data-based JSON constructors: `ComparableVersionWidget.diffViewFromJson`
   and `ComparableVersionWidget.rawViewFromJson`, which accept decoded JSON
