@@ -12,6 +12,7 @@ platforms:
   windows:
   linux:
   macos:
+  web:
 
 dependencies:
   flutter:
