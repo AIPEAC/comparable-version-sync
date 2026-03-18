@@ -1,4 +1,7 @@
 # Changelog
+## 1.1.0+2
+- Added missing web support declaration to `pubspec.yaml`.
+
 ## 1.1.0+1
 - Fixed README.md installation instructions.
 
