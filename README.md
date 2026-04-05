@@ -1,7 +1,6 @@
 # comparable_version_sync
 
 A Flutter package for comparing and merging versions of **JSON** or **SQLite** data with a fully configurable, git-conflict-style diff/merge widget.
-[Link to pub.dev](https://pub.dev/packages/comparable_version_sync)
 
 ---
 ## Demostration
