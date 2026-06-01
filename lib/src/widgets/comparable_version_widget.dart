@@ -524,15 +524,53 @@ class _ComparableVersionWidgetState extends State<ComparableVersionWidget> {
   static void _setAtPath(
       Map<String, dynamic> map, String path, dynamic value) {
     final parts = path.split('.');
-    var current = map;
+    dynamic current = map;
     for (var i = 0; i < parts.length - 1; i++) {
       final part = parts[i];
-      if (current[part] is! Map<String, dynamic>) {
-        current[part] = <String, dynamic>{};
+      if (current is Map<String, dynamic>) {
+        final next = current[part];
+        if (next is Map<String, dynamic>) {
+          current = next;
+        } else if (next is List) {
+          // Next segment is a list index.
+          final index = int.parse(parts[++i]);
+          while (next.length <= index) {
+            next.add(<String, dynamic>{});
+          }
+          var element = next[index];
+          if (element is! Map<String, dynamic>) {
+            next[index] = <String, dynamic>{};
+            element = next[index];
+          }
+          current = element as Map<String, dynamic>;
+        } else {
+          current[part] = <String, dynamic>{};
+          current = current[part] as Map<String, dynamic>;
+        }
+      } else if (current is List) {
+        // current is already a List (reached via previous list index).
+        final index = int.parse(part);
+        while (current.length <= index) {
+          current.add(<String, dynamic>{});
+        }
+        var element = current[index];
+        if (element is! Map<String, dynamic>) {
+          current[index] = <String, dynamic>{};
+          element = current[index];
+        }
+        current = element as Map<String, dynamic>;
       }
-      current = current[part] as Map<String, dynamic>;
     }
-    current[parts.last] = value;
+    // Set the final value.
+    if (current is Map<String, dynamic>) {
+      current[parts.last] = value;
+    } else if (current is List) {
+      final index = int.parse(parts.last);
+      while (current.length <= index) {
+        current.add(null);
+      }
+      current[index] = value;
+    }
   }
 
   static Map<String, dynamic> _deepClone(Map<String, dynamic> src) =>

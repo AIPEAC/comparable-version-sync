@@ -1,4 +1,7 @@
 # Changelog
+## 1.2.0
+- **Fixed `_setAtPath` destroying Lists:** When a diff path traversed a JSON array (e.g. `languages.English.words.435.addonData`), the old code checked `is! Map<String, dynamic>` on the List, overwrote it with an empty Map, and lost every list element except the changed ones. `_setAtPath` now correctly detects Lists, parses the next path segment as an integer index, and mutates the element in-place.
+
 ## 1.1.0+2
 - Added missing web support declaration to `pubspec.yaml`.
 
